@@ -173,7 +173,7 @@ async def main_callback_handler(client, query: CallbackQuery):
         elif data == "open_settings":
             text, buttons = await get_settings_menu(client, is_admin)
             
-            # Agar purana message video/photo hai (jaise help video), toh delete karke naya bhejo
+            # Agar purana message media hai, toh delete karke naya bhejo
             if query.message.video or query.message.photo or query.message.document:
                 await query.message.delete()
                 await client.send_message(query.message.chat.id, text, reply_markup=buttons, disable_web_page_preview=True)
@@ -183,47 +183,32 @@ async def main_callback_handler(client, query: CallbackQuery):
         elif data == "back_start":
             text, buttons = get_start_menu(query.from_user.first_name)
             
-            # Agar current message media hai toh usko delete karke wapas start bhejo
             if query.message.video or query.message.photo or query.message.document:
                 await query.message.delete()
                 await client.send_message(query.message.chat.id, text, reply_markup=buttons)
             else:
                 await query.message.edit_text(text, reply_markup=buttons)
 
+        # 👇 FIX YAHAN KIYA GAYA HAI (Video ke anusar strict format)
         elif data == "user_help":
             text = (
-                "> ❓ **𝗛𝗲𝗹𝗽 & 𝗜𝗻𝘀𝘁𝗿𝘂𝗰𝘁𝗶𝗼𝗻𝘀**\n\n"
-                "• **𝖥𝗂𝗅𝖾𝗌 / 𝖠𝗇𝗂𝗆𝖾 𝖪𝖺𝗂𝗌𝖾 𝖣𝗁𝗎𝗇𝖽𝗁𝖾𝗂𝗇?**\n"
-                "  Channel me diye gaye episode button par click karein aur bot me `/start` dabayein.\n\n"
-                "• **𝖥𝗈𝗋𝖼𝖾 𝖲𝗎𝖻𝗌𝖼𝗋𝗂𝗉𝗍𝗂𝗈𝗇:**\n"
-                "  Files download karne se pehle official channel join karna zaroori hai."
+                "» ꜰᴏʀ ᴍᴏʀᴇ: @kdramatalkies\n"
+                "» ꜱᴜᴘᴘᴏʀᴛ: @mon_jaaii\n"
+                "» ʟᴀɴɢᴜᴀɢᴇ: Pʏᴛʜᴏɴ 3\n"
+                "» ʟɪʙʀᴀʀʏ: Pʏʀᴏɢʀᴀᴍ V2\n"
+                "» ᴅᴀᴛᴀʙᴀꜱᴇ: Mᴏɴɢᴏ ᴅʙ\n"
+                "» ᴅᴇᴠᴇʟᴏᴘᴇʀ: codeflix"
             )
-            if is_admin:
-                text += (
-                    "\n\n👑 **𝗔𝗱𝗺𝗶𝗻 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀:**\n"
-                    "🔸 `/addchannel [ID]` - Channel add karein\n"
-                    "🔸 `/delchannel [ID]` - Channel remove karein\n"
-                    "🔸 `/addadmin [ID]` - Naya admin add karein\n"
-                    "🔸 `/deladmin [ID]` - Admin remove karein\n"
-                    "🔸 `/broadcast` - Reply to msg to broadcast"
-                )
-            buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="back_start")]])
+            buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("Back", callback_data="back_start"),
+                 InlineKeyboardButton("Close", callback_data="close_panel")]
+            ])
             
-            # 👇 YAHAN APNI TUTORIAL VIDEO KA LINK YA FILE_ID DAALEIN
-            help_video = getattr(Config, "HELP_VIDEO", "https://t.me/telegram/183") # Example dummy video
-            
-            try:
-                # Video bhejne ke liye current text message delete karte hain
+            if query.message.video or query.message.photo or query.message.document:
                 await query.message.delete()
-                await client.send_video(
-                    chat_id=query.message.chat.id,
-                    video=help_video,
-                    caption=text,
-                    reply_markup=buttons
-                )
-            except:
-                # Agar video nahi send ho paayi toh text format me help bhejega
                 await client.send_message(query.message.chat.id, text, reply_markup=buttons)
+            else:
+                await query.message.edit_text(text, reply_markup=buttons)
 
         # ====== ADMIN SUB-MENUS (Ab inka Back button 'open_settings' par jayega) ======
         elif data == "admin_manage":
