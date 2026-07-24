@@ -68,13 +68,13 @@ async def main_callback_handler(client, query: CallbackQuery):
         elif data == "open_settings":
             text = (
                 "> ⚙️ **𝗕𝗼𝘁 𝗜𝗻𝗳𝗼 & 𝗦𝗲𝘁𝘁𝗶𝗻𝗴𝘀**\n\n"
-                "🤖 **ᴍʏ ɴᴀᴍᴇ:** Anime Shanu #1 • Hell's Paradise Season 2\n"
-                "» **ᴄʀᴇᴀᴛᴏʀ:** Mɪᴋᴏʏᴏ\n"
-                "» **ᴏᴜʀ ᴄᴏᴍᴍᴜɴɪᴛʏ:** Aᴇʀᴏ ʙᴏᴛs\n"
-                "» **ᴀɴɪᴍᴇ ᴄʜᴀɴɴᴇʟ:** sʜᴀɴᴜ ᴀɴɪᴍᴇ\n"
-                "» **Sʜᴀɴᴜ Aɴɪᴍᴇ:** Sʜᴀɴᴜ Aɴɪᴍᴇ Cʜᴀᴛᴛɪɴ𝗀\n"
-                "» **Sʜᴀɴᴜ Aɴɪᴍᴇ Nᴇᴡs:** Sʜᴀɴᴜ Aɴɪᴍᴇ Nᴇᴡs\n"
-                "» **ᴅᴇᴠᴇʟᴏᴘᴇʀ:** Mɪᴋᴏʏᴏ"
+                "🤖 **ᴍʏ ɴᴀᴍᴇ:** {botname}\n"
+                "» **ᴄʀᴇᴀᴛᴏʀ:** Detor\n"
+                "» **ᴏᴜʀ ᴄᴏᴍᴍᴜɴɪᴛʏ:** DetorLabs\n"
+                "» **ᴀɴɪᴍᴇ ᴄʜᴀɴɴᴇʟ:** Detor ᴀɴɪᴍᴇ\n"
+                "» **Aɴɪᴍᴇ:** Aɴɪᴍᴇ Cʜᴀᴛᴛɪɴ𝗀\n"
+                "» **Aɴɪᴍᴇ Nᴇᴡs:** Aɴɪᴍᴇ Nᴇᴡs\n"
+                "» **ᴅᴇᴠᴇʟᴏᴘᴇʀ:** @iTsDetor"
             )
 
             # Base buttons for Normal Users
