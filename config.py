@@ -10,7 +10,7 @@ class Config:
     MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://neonman242:neonman242@game0.sqfzcd4.mongodb.net/?appName=game0")
     
     # 𝗔𝗱𝗺𝗶𝗻 & 𝗙-𝗦𝘂𝗯
-    ADMINS = [int(admin) for admin in os.environ.get("ADMINS", "123456789").split()] # Apna User ID
+    ADMINS = [int(admin) for admin in os.environ.get("ADMINS", "7680976846").split()] # Apna User ID
     FSUB_CHANNEL = int(os.environ.get("FSUB_CHANNEL", "-1004295637905")) # Channel ID
     FSUB_INVITE_LINK = os.environ.get("FSUB_INVITE_LINK", "https://t.me/tetsbdbeb36")
     
