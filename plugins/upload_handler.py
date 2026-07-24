@@ -60,7 +60,8 @@ async def handle_video_upload(client, message):
 
     buttons = []
     for ch in channels:
-        buttons.append([InlineKeyboardButton(ch.get('name', 'Channel'), callback_data=f"post_{file_hash}_{ch['_id']}")])
+        # ✅ Changed '_' to ':' here to prevent collision with token_urlsafe underscores
+        buttons.append([InlineKeyboardButton(ch.get('name', 'Channel'), callback_data=f"post:{file_hash}:{ch['_id']}")])
     
     await message.reply_text(
         f"> 🔗 **𝗟𝗶𝗻𝗸 𝗚𝗲𝗻𝗲𝗿𝗮𝘁𝗲𝗱 𝗦𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆!**\n\n"
@@ -72,9 +73,11 @@ async def handle_video_upload(client, message):
 
 
 # 🚀 𝗙𝗮𝘀𝘁 𝗣𝗼𝘀𝘁𝗶𝗻𝗴 (Dynamic Links & Buttons Integrated)
-@Client.on_callback_query(filters.regex(r"^post_"))
+# ✅ Updated regex filter to match the new colon delimiter
+@Client.on_callback_query(filters.regex(r"^post:"))
 async def final_post_to_channel(client, query: CallbackQuery):
-    data = query.data.split("_")
+    # ✅ Updated split method to use colon instead of underscore
+    data = query.data.split(":")
     file_hash = data[1]
     channel_id = int(data[2])
     
