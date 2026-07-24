@@ -23,6 +23,15 @@ def parse_time(time_str):
     except:
         return 0
 
+# 🔗 Helper function: URL ko validate karne ke liye (BUTTON_URL_INVALID error rokenge)
+def format_url(url):
+    if not url: 
+        return None
+    url = str(url).strip()
+    if not (url.startswith("http://") or url.startswith("https://") or url.startswith("tg://")):
+        return f"https://{url}"
+    return url
+
 
 # 👇 YAHAN FILTER CHANGE KIYA HAI (admin_filter lagaya hai)
 @Client.on_message((filters.document | filters.video) & admin_filter & filters.private)
@@ -125,36 +134,41 @@ async def final_post_to_channel(client, query: CallbackQuery):
             
         else: 
             # Default "Link" Mode (Poster Image + Description + Dynamic Buttons)
-            
-            # Fetch Global DB Settings for Links
             settings = await db.get_settings()
-            bot_username = (await client.get_me()).username
-            
-            u_link = settings.get("updates_link") or Config.FSUB_INVITE_LINK
-            h_link = settings.get("help_link") or f"https://t.me/{bot_username}"
             
             # Main Episode Download Button
             btn_rows = [
-                [InlineKeyboardButton(p_data["btn_name"], url=p_data["start_link"])]
+                [InlineKeyboardButton(p_data["btn_name"], url=format_url(p_data["start_link"]))]
             ]
             
-            # Dynamic Second Row (Updates / Help)
-            second_row = []
-            if u_link and str(u_link).lower() != "off":
-                second_row.append(InlineKeyboardButton("🔔 𝗨𝗽𝗱𝗮𝘁𝗲𝘀", url=u_link))
-            if h_link and str(h_link).lower() != "off":
-                second_row.append(InlineKeyboardButton("💬 𝗛𝗲𝗹𝗽", url=h_link))
+            # 👇 YAHAN DATABASE SE DYNAMIC ADMIN BUTTONS FETCH HONGE
+            post_buttons = settings.get("post_buttons", [])
+            
+            if post_buttons:
+                current_row = []
+                for btn in post_buttons:
+                    valid_url = format_url(btn.get("url", ""))
+                    if valid_url:  # Valid URL hone par hi button add hoga
+                        current_row.append(InlineKeyboardButton(btn["name"], url=valid_url))
+                    
+                    if len(current_row) == 2:  # Har row me maximum 2 buttons
+                        btn_rows.append(current_row)
+                        current_row = []
                 
-            if second_row:
-                btn_rows.append(second_row)
+                if current_row: # Agar koi 1 odd button bach jaye
+                    btn_rows.append(current_row)
+            else:
+                # Agar koi button set nahi hai toh Default Help Button
+                bot_username = (await client.get_me()).username
+                fallback_help = f"https://t.me/{bot_username}"
+                btn_rows.append([InlineKeyboardButton("💬 𝗛𝗲𝗹𝗽", url=fallback_help)])
                 
             keyboard = InlineKeyboardMarkup(btn_rows)
             
-            # Text Formatting (Updated to show Title and Genres instead of Caption and Description)
+            # Text Formatting
             post_text = f"**{ch_title}**\n\n" if ch_title else f"**{p_data['caption']}**\n\n"
             
             if description and description.lower() != "skipped":
-                # User ne agar by mistake Genres: likh diya ho toh usko remove karke bas actual genres rakhega
                 clean_genres = re.sub(r"(?i)^genres?:\s*", "", description)
                 post_text += f"**Genres:** {clean_genres}"
                 
@@ -189,4 +203,3 @@ async def delete_post_later(client, chat_id, msg_id, delay):
         await client.delete_messages(chat_id=chat_id, message_ids=msg_id)
     except:
         pass
-        
