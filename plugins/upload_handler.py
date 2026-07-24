@@ -29,8 +29,8 @@ async def handle_video_upload(client, message):
     file_id = message.document.file_id if message.document else message.video.file_id
     caption = message.caption or "No Caption"
     
-    # 🔍 𝗦𝗺𝗮𝗿𝘁 𝗥𝗲𝗴𝗲𝘅 - 𝗘𝗽𝗶𝘀𝗼𝗱𝗲 𝗗𝗲𝘁𝗲𝗰𝘁𝗶𝗼𝗻
-    match = re.search(r"(?i)(?:ep|episode|episodes)\s*0*(\d+)", caption)
+    # 🔍 𝗦𝗺𝗮𝗿𝘁 𝗥𝗲𝗴𝗲𝘅 - 𝗘𝗽𝗶𝘀𝗼𝗱𝗲 𝗗𝗲𝘁𝗲𝗰𝘁𝗶𝗼𝗻 (Updated for E09, E.09, Ep09)
+    match = re.search(r"(?i)(?:ep|episode|episodes|e)[\s_.\-]*0*(\d+)", caption)
     if match:
         ep_num = match.group(1)
         btn_name = f"🎬 𝗘𝗣𝗜𝗦𝗢𝗗𝗘 {ep_num}"
@@ -73,10 +73,8 @@ async def handle_video_upload(client, message):
 
 
 # 🚀 𝗙𝗮𝘀𝘁 𝗣𝗼𝘀𝘁𝗶𝗻𝗴 (Dynamic Links & Buttons Integrated)
-# ✅ Updated regex filter to match the new colon delimiter
 @Client.on_callback_query(filters.regex(r"^post:"))
 async def final_post_to_channel(client, query: CallbackQuery):
-    # ✅ Updated split method to use colon instead of underscore
     data = query.data.split(":")
     file_hash = data[1]
     channel_id = int(data[2])
@@ -98,7 +96,10 @@ async def final_post_to_channel(client, query: CallbackQuery):
     post_mode = target_channel.get("post_mode", "Link").capitalize()
     auto_del_str = target_channel.get("auto_delete", "0")
     poster_id = target_channel.get("poster_id")
+    
+    # Updated: Getting Description (Genres) and Channel Title
     description = target_channel.get("description", "")
+    ch_title = target_channel.get("name", "")
     
     timer_seconds = parse_time(auto_del_str)
     sent_msg = None
@@ -148,10 +149,13 @@ async def final_post_to_channel(client, query: CallbackQuery):
                 
             keyboard = InlineKeyboardMarkup(btn_rows)
             
-            # Text Formatting
-            post_text = f"**{p_data['caption']}**\n\n"
-            if description:
-                post_text += f"**Description:**\n{description}"
+            # Text Formatting (Updated to show Title and Genres instead of Caption and Description)
+            post_text = f"**{ch_title}**\n\n" if ch_title else f"**{p_data['caption']}**\n\n"
+            
+            if description and description.lower() != "skipped":
+                # User ne agar by mistake Genres: likh diya ho toh usko remove karke bas actual genres rakhega
+                clean_genres = re.sub(r"(?i)^genres?:\s*", "", description)
+                post_text += f"**Genres:** {clean_genres}"
                 
             if poster_id:
                 sent_msg = await client.send_photo(
