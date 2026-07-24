@@ -6,19 +6,72 @@ from database import db
 import asyncio
 import pyromod # Pucha gaya naya message lene ke liye
 
+# ==================== HELPER FUNCTIONS ====================
+# Start Menu Generate karne ke liye
+def get_start_menu(user_name):
+    text = (
+        f"> 👋 **Hey {user_name}! Welcome to the Bot**\n\n"
+        "𝖬𝖺𝗂𝗇 𝖺𝖺𝗉𝗄𝗂 𝖺𝗇𝗂𝗆𝖾 𝗏𝗂𝖽𝖾𝗈𝗌 𝖺𝗎𝗋 𝗅𝗂𝗇𝗄𝗌 𝗉𝗋𝗈𝗏𝗂𝖽𝖾 𝗄𝖺𝗋𝗇𝖾 𝗆𝖾 𝗆𝖺𝖽𝖺𝖽 𝗄𝖺𝗋𝗎𝗇𝗀𝖺.\n"
+        "𝖭𝗂𝖼𝗁𝖾 𝖽𝗂𝗒𝖾 𝗀𝖺𝗒𝖾 𝖻𝗎𝗍𝗍𝗈𝗇𝗌 𝗄𝖺 𝗎𝗌𝖾 𝗄𝖺𝗋𝗄𝖾 𝖾𝗑𝗉𝗅𝗈𝗋𝖾 𝗄𝖺𝗋𝖾𝗂𝗇:"
+    )
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("⛩️ 𝗦𝗘𝗧𝗧𝗜𝗡𝗚𝗦 ⛩️", callback_data="open_settings")],
+        [InlineKeyboardButton("❓ 𝗛𝗲𝗹𝗽", callback_data="user_help"),
+         InlineKeyboardButton("❌ 𝗖𝗹𝗼𝘀𝗲", callback_data="close_panel")]
+    ])
+    return text, buttons
+
+# Settings / Admin Menu Generate karne ke liye
+async def get_settings_menu(client, is_admin):
+    bot_info = await client.get_me()
+    bot_name = bot_info.first_name
+    
+    # YAHAN APNE CHANNELS KE LINKS DAALEIN 👇
+    text = (
+        "> ⚙️ **𝗕𝗼𝘁 𝗜𝗻𝗳𝗼 & 𝗦𝗲𝘁𝘁𝗶𝗻𝗴𝘀**\n\n"
+        f"🤖 **ᴍʏ ɴᴀᴍᴇ:** {bot_name} • Hell's Paradise Season 2\n"
+        "» **ᴄʀᴇᴀᴛᴏʀ:** [Mɪᴋᴏʏᴏ](https://t.me/YourUsername)\n"
+        "» **ᴏᴜʀ ᴄᴏᴍᴍᴜɴɪᴛʏ:** [Aᴇʀᴏ ʙᴏᴛs](https://t.me/YourCommunityLink)\n"
+        "» **ᴀɴɪᴍᴇ ᴄʜᴀɴɴᴇʟ:** [sʜᴀɴᴜ ᴀɴɪᴍᴇ](https://t.me/YourAnimeChannel)\n"
+        "» **Sʜᴀɴᴜ Aɴɪᴍᴇ:** [Sʜᴀɴᴜ Aɴɪᴍᴇ Cʜᴀᴛᴛɪɴ𝗀](https://t.me/YourChatLink)\n"
+        "» **Sʜᴀɴᴜ Aɴɪᴍᴇ Nᴇᴡs:** [Sʜᴀɴᴜ Aɴɪᴍᴇ Nᴇᴡs](https://t.me/YourNewsLink)\n"
+        "» **ᴅᴇᴠᴇʟᴏᴘᴇʀ:** [Mɪᴋᴏʏᴏ](https://t.me/YourUsername)"
+    )
+    
+    if is_admin:
+        # Admin ko ye saare buttons dikhenge Settings me
+        btn_list = [
+            [InlineKeyboardButton("📊 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝘀", callback_data="admin_stats"),
+             InlineKeyboardButton("📢 𝗕𝗿𝗼𝗮𝗱𝗰𝗮𝘀𝘁", callback_data="admin_broadcast")],
+            [InlineKeyboardButton("📺 𝗠𝗮𝗻𝗮𝗴𝗲 𝗖𝗵𝗮𝗻𝗻𝗲𝗹𝘀", callback_data="admin_channels"),
+             InlineKeyboardButton("⚙️ 𝗙-𝗦𝘂𝗯 / 𝗔𝘂𝘁𝗼-𝗗𝗲𝗹", callback_data="admin_toggles")],
+            [InlineKeyboardButton("📝 𝗪𝗲𝗹𝗰𝗼𝗺𝗲 𝗠𝘀𝗴", callback_data="admin_welcome"),
+             InlineKeyboardButton("🔗 𝗣𝗼𝘀𝘁 𝗕𝘂𝘁𝘁𝗼𝗻𝘀", callback_data="admin_post_btns")],
+            [InlineKeyboardButton("👥 𝗠𝗮𝗻𝗮𝗴𝗲 𝗔𝗱𝗺𝗶𝗻𝘀", callback_data="admin_manage")],
+            [InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="back_start"),
+             InlineKeyboardButton("❌ 𝗖𝗹𝗼𝘀𝗲", callback_data="close_panel")]
+        ]
+    else:
+        # Normal user ko sirf Back aur Close dikhega
+        btn_list = [
+            [InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="back_start"),
+             InlineKeyboardButton("❌ 𝗖𝗹𝗼𝘀𝗲", callback_data="close_panel")]
+        ]
+    return text, InlineKeyboardMarkup(btn_list)
+
+
 # ==================== 1. START / WELCOME COMMAND ====================
 @Client.on_message(filters.command("start") & filters.private)
 async def start_cmd(client, message):
     if hasattr(db, "add_user"):
         await db.add_user(message.from_user.id)
 
-    # 👇 𝗡𝗘𝗪: 𝗗𝗘𝗘𝗣 𝗟𝗜𝗡𝗞𝗜𝗡𝗚 𝗟𝗢𝗚𝗜𝗖 (File Send Karne Ke Liye)
+    # DEEP LINKING LOGIC
     if len(message.command) > 1:
         file_hash = message.command[1]
         file_data = await db.get_file(file_hash)
         
         if file_data:
-            # Note: Agar aapne F-Sub on rakha hai, toh uska verification aap yahan add kar sakte hain
             try:
                 msg = await client.send_document(
                     chat_id=message.chat.id,
@@ -26,7 +79,6 @@ async def start_cmd(client, message):
                     caption=file_data.get("caption", "Here is your file!")
                 )
             except:
-                # Agar pure video file hui toh send_video use karega
                 msg = await client.send_video(
                     chat_id=message.chat.id,
                     video=file_data["file_id"],
@@ -37,34 +89,23 @@ async def start_cmd(client, message):
             await message.reply_text("❌ **File not found or expired!**")
             return
 
-    # 👇 𝗡𝗢𝗥𝗠𝗔𝗟 𝗦𝗧𝗔𝗥𝗧 𝗠𝗘𝗡𝗨
-    user_name = message.from_user.first_name
-    text = (
-        f"> 👋 **Hey {user_name}! Welcome to the Bot**\n\n"
-        "𝖬𝖺𝗂𝗇 𝖺𝖺𝗉𝗄𝗂 𝖺𝗇𝗂𝗆𝖾 𝗏𝗂𝖽𝖾𝗈𝗌 𝖺𝗎𝗋 𝗅𝗂𝗇𝗄𝗌 𝗉𝗋𝗈𝗏𝗂𝖽𝖾 𝗄𝖺𝗋𝗇𝖾 𝗆𝖾 𝗆𝖺𝖽𝖺𝖽 𝗄𝖺𝗋𝗎𝗇𝗀𝖺.\n"
-        "𝖭𝗂𝖼𝗁𝖾 𝖽𝗂𝗒𝖾 𝗀𝖺𝗒𝖾 𝖻𝗎𝗍𝗍𝗈𝗇𝗌 𝗄𝖺 𝗎𝗌𝖾 𝗄𝖺𝗋𝗄𝖾 𝖾𝗑𝗉𝗅𝗈𝗋𝖾 𝗄𝖺𝗋𝖾𝗂𝗇:"
-    )
-
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("⛩️ 𝗦𝗘𝗧𝗧𝗜𝗡𝗚𝗦 ⛩️", callback_data="open_settings")],
-        [InlineKeyboardButton("❓ 𝗛𝗲𝗹𝗽", callback_data="user_help"),
-         InlineKeyboardButton("❌ 𝗖𝗹𝗼𝘀𝗲", callback_data="close_panel")]
-    ])
+    # NORMAL START MENU
+    text, buttons = get_start_menu(message.from_user.first_name)
     await message.reply_text(text, reply_markup=buttons)
 
 
-# ==================== 2. ADMIN PANEL & COMMANDS ====================
+# ==================== 2. ADMIN COMMANDS ====================
 @Client.on_message(filters.command("admin") & filters.user(Config.ADMINS))
 async def admin_cmd(client, message):
-    await send_admin_panel(message, is_edit=False)
+    # Ab /admin par bhi seedha settings menu khulega jisme saare buttons honge
+    text, buttons = await get_settings_menu(client, is_admin=True)
+    await message.reply_text(text, reply_markup=buttons, disable_web_page_preview=True)
 
-
-# 👇 NEW: DIRECT COMMANDS FOR ADD / REMOVE ADMIN
 @Client.on_message(filters.command("addadmin") & filters.user(Config.ADMINS))
 async def add_admin_cmd(client, message):
     try:
         new_admin_id = int(message.command[1])
-        Config.ADMINS = list(Config.ADMINS) # Convert to list if it's a tuple
+        Config.ADMINS = list(Config.ADMINS)
         if new_admin_id not in Config.ADMINS:
             Config.ADMINS.append(new_admin_id)
             await message.reply_text(f"> ✅ **𝗦𝘂𝗰𝗰𝗲𝘀𝘀:** 𝖴𝗌𝖾𝗋 `{new_admin_id}` 𝗄𝗈 𝖠𝖽𝗆𝗂𝗇 𝖻𝖺𝗇𝖺 𝖽𝗂𝗒𝖺 𝗀𝖺𝗒𝖺 𝗁𝖺𝗂!")
@@ -91,30 +132,6 @@ async def del_admin_cmd(client, message):
         await message.reply_text("❌ **Invalid ID!** Sirf numbers enter karein.")
 
 
-# Helper function: Admin Panel Interface (UPDATED)
-async def send_admin_panel(message_or_query, is_edit=True):
-    text = (
-        "> 👑 **𝗣𝗿𝗲𝗺𝗶𝘂𝗺 𝗔𝗱𝗺𝗶𝗻 𝗖𝗼𝗻𝘁𝗿𝗼𝗹 𝗣𝗮𝗻𝗲𝗹**\n\n"
-        "**𝗪𝗲𝗹𝗰𝗼𝗺𝗲 𝗕𝗼𝘀𝘀!** 𝖸𝖺𝗁𝖺𝗇 𝗌𝖾 𝖺𝖺𝗉 𝖻𝗈𝗍 𝗄𝗂 𝗌𝖺𝖺𝗋𝗂 𝗌𝖾𝗍𝗍𝗂𝗇𝗀𝗌 𝖺𝗎𝗋 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝖼𝗈𝗇𝗍𝗋𝗈𝗅 𝗄𝖺𝗋 𝗌𝖺𝗄𝗍𝖾 𝗁𝖺𝗂𝗇:"
-    )
-    # 👇 NEW: 👥 𝗠𝗮𝗻𝗮𝗴𝗲 𝗔𝗱𝗺𝗶𝗻𝘀 Button Added
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📊 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝘀", callback_data="admin_stats"),
-         InlineKeyboardButton("📢 𝗕𝗿𝗼𝗮𝗱𝗰𝗮𝘀𝘁", callback_data="admin_broadcast")],
-        [InlineKeyboardButton("📺 𝗠𝗮𝗻𝗮𝗴𝗲 𝗖𝗵𝗮𝗻𝗻𝗲𝗹𝘀", callback_data="admin_channels"),
-         InlineKeyboardButton("⚙️ 𝗙-𝗦𝘂𝗯 / 𝗔𝘂𝘁𝗼-𝗗𝗲𝗹", callback_data="admin_toggles")],
-        [InlineKeyboardButton("📝 𝗪𝗲𝗹𝗰𝗼𝗺𝗲 𝗠𝘀𝗴", callback_data="admin_welcome"),
-         InlineKeyboardButton("🔗 𝗣𝗼𝘀𝘁 𝗕𝘂𝘁𝘁𝗼𝗻𝘀", callback_data="admin_post_btns")],
-        [InlineKeyboardButton("👥 𝗠𝗮𝗻𝗮𝗴𝗲 𝗔𝗱𝗺𝗶𝗻𝘀", callback_data="admin_manage")],
-        [InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸 𝘁𝗼 𝗦𝗲𝘁𝘁𝗶𝗻𝗴𝘀", callback_data="open_settings")]
-    ])
-
-    if is_edit:
-        await message_or_query.edit_text(text, reply_markup=buttons)
-    else:
-        await message_or_query.reply_text(text, reply_markup=buttons)
-
-
 # Helper function: Toggles Menu (Dynamic Buttons)
 async def render_toggles_menu(query):
     settings = await db.get_settings()
@@ -133,7 +150,7 @@ async def render_toggles_menu(query):
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton(fsub_text, callback_data="toggle_fsub"),
          InlineKeyboardButton(del_text, callback_data="toggle_autodel")],
-        [InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="admin_main_panel")]
+        [InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="open_settings")] # Updated to back to settings
     ])
     
     try:
@@ -143,7 +160,6 @@ async def render_toggles_menu(query):
 
 
 # ==================== 3. ALL CALLBACK HANDLERS ====================
-# 👇 NEW: Regex filter updated for add/del admin buttons
 @Client.on_callback_query(filters.regex(r"^(close_panel|open_settings|user_help|back_start|admin_|edit_|reset_|toggle_|add_admin|del_admin)"))
 async def main_callback_handler(client, query: CallbackQuery):
     data = query.data
@@ -155,26 +171,24 @@ async def main_callback_handler(client, query: CallbackQuery):
             await query.message.delete()
 
         elif data == "open_settings":
-            text = (
-                "> ⚙️ **𝗕𝗼𝘁 𝗜𝗻𝗳𝗼 & 𝗦𝗲𝘁𝘁𝗶𝗻𝗴𝘀**\n\n"
-                "🤖 **ᴍʏ ɴᴀᴍᴇ:** Anime Shanu #1 • Hell's Paradise Season 2\n"
-                "» **ᴄʀᴇᴀᴛᴏʀ:** Mɪᴋᴏʏᴏ\n"
-                "» **ᴏᴜʀ ᴄᴏᴍᴍᴜɴɪᴛʏ:** Aᴇʀᴏ ʙᴏᴛs\n"
-                "» **ᴀɴɪᴍᴇ ᴄʜᴀɴɴᴇʟ:** sʜᴀɴᴜ ᴀɴɪᴍᴇ\n"
-                "» **Sʜᴀɴᴜ Aɴɪᴍᴇ:** Sʜᴀɴᴜ Aɴɪᴍᴇ Cʜᴀᴛᴛɪɴ𝗀\n"
-                "» **Sʜᴀɴᴜ Aɴɪᴍᴇ Nᴇᴡs:** Sʜᴀɴᴜ Aɴɪᴍᴇ Nᴇᴡs\n"
-                "» **ᴅᴇᴠᴇʟᴏᴘᴇʀ:** Mɪᴋᴏʏᴏ"
-            )
-            btn_list = [
-                [InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="back_start"),
-                 InlineKeyboardButton("❌ 𝗖𝗹𝗼𝘀𝗲", callback_data="close_panel")]
-            ]
-            if is_admin:
-                btn_list.append([InlineKeyboardButton("👑 𝗔𝗱𝗺𝗶𝗻 𝗖𝗼𝗻𝘁𝗿𝗼𝗹𝘀", callback_data="admin_main_panel")])
-            await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(btn_list))
+            text, buttons = await get_settings_menu(client, is_admin)
+            
+            # Agar purana message video/photo hai (jaise help video), toh delete karke naya bhejo
+            if query.message.video or query.message.photo or query.message.document:
+                await query.message.delete()
+                await client.send_message(query.message.chat.id, text, reply_markup=buttons, disable_web_page_preview=True)
+            else:
+                await query.message.edit_text(text, reply_markup=buttons, disable_web_page_preview=True)
 
         elif data == "back_start":
-            await start_cmd(client, query.message)
+            text, buttons = get_start_menu(query.from_user.first_name)
+            
+            # Agar current message media hai toh usko delete karke wapas start bhejo
+            if query.message.video or query.message.photo or query.message.document:
+                await query.message.delete()
+                await client.send_message(query.message.chat.id, text, reply_markup=buttons)
+            else:
+                await query.message.edit_text(text, reply_markup=buttons)
 
         elif data == "user_help":
             text = (
@@ -191,16 +205,27 @@ async def main_callback_handler(client, query: CallbackQuery):
                     "🔸 `/delchannel [ID]` - Channel remove karein\n"
                     "🔸 `/addadmin [ID]` - Naya admin add karein\n"
                     "🔸 `/deladmin [ID]` - Admin remove karein\n"
-                    "🔸 `/broadcast` - Reply to message to broadcast"
+                    "🔸 `/broadcast` - Reply to msg to broadcast"
                 )
             buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="back_start")]])
-            await query.message.edit_text(text, reply_markup=buttons)
-
-        elif data == "admin_main_panel":
-            if not is_admin: return await query.answer("❌ Aap Admin Nahi Hain!", show_alert=True)
-            await send_admin_panel(query.message, is_edit=True)
             
-        # 👇 NEW: ADMIN MANAGE SECTION (UI Buttons)
+            # 👇 YAHAN APNI TUTORIAL VIDEO KA LINK YA FILE_ID DAALEIN
+            help_video = getattr(Config, "HELP_VIDEO", "https://t.me/telegram/183") # Example dummy video
+            
+            try:
+                # Video bhejne ke liye current text message delete karte hain
+                await query.message.delete()
+                await client.send_video(
+                    chat_id=query.message.chat.id,
+                    video=help_video,
+                    caption=text,
+                    reply_markup=buttons
+                )
+            except:
+                # Agar video nahi send ho paayi toh text format me help bhejega
+                await client.send_message(query.message.chat.id, text, reply_markup=buttons)
+
+        # ====== ADMIN SUB-MENUS (Ab inka Back button 'open_settings' par jayega) ======
         elif data == "admin_manage":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
             text = (
@@ -211,7 +236,7 @@ async def main_callback_handler(client, query: CallbackQuery):
             buttons = InlineKeyboardMarkup([
                 [InlineKeyboardButton("➕ 𝗔𝗱𝗱 𝗔𝗱𝗺𝗶𝗻", callback_data="add_admin"),
                  InlineKeyboardButton("➖ 𝗥𝗲𝗺𝗼𝘃𝗲 𝗔𝗱𝗺𝗶𝗻", callback_data="del_admin")],
-                [InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="admin_main_panel")]
+                [InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="open_settings")]
             ])
             await query.message.edit_text(text, reply_markup=buttons)
 
@@ -258,7 +283,7 @@ async def main_callback_handler(client, query: CallbackQuery):
                 "`/delchannel [Channel ID]`\n\n"
                 "💡 *Tip:* Agar PeerId error aaye toh channel se koi bhi message bot ko forward kar do."
             )
-            buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="admin_main_panel")]])
+            buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="open_settings")]])
             await query.message.edit_text(text, reply_markup=buttons)
 
         elif data == "admin_broadcast":
@@ -275,7 +300,7 @@ async def main_callback_handler(client, query: CallbackQuery):
                 f"📺 **Connected Channels:** `{len(channels)}`\n"
                 f"👥 **Total Admins:** `{len(Config.ADMINS)}`"
             )
-            buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="admin_main_panel")]])
+            buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="open_settings")]])
             await query.message.edit_text(text, reply_markup=buttons)
 
         elif data == "admin_welcome":
@@ -291,7 +316,7 @@ async def main_callback_handler(client, query: CallbackQuery):
             buttons = InlineKeyboardMarkup([
                 [InlineKeyboardButton("✏️ 𝗘𝗱𝗶𝘁 𝗠𝗲𝘀𝘀𝗮𝗴𝗲", callback_data="edit_welcome"),
                  InlineKeyboardButton("🔄 𝗥𝗲𝘀𝗲𝘁 𝗗𝗲𝗳𝗮𝘂𝗹𝘁", callback_data="reset_welcome")],
-                [InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="admin_main_panel")]
+                [InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="open_settings")]
             ])
             await query.message.edit_text(text, reply_markup=buttons)
 
@@ -329,7 +354,7 @@ async def main_callback_handler(client, query: CallbackQuery):
             buttons = InlineKeyboardMarkup([
                 [InlineKeyboardButton("✏️ 𝗘𝗱𝗶𝘁 𝗨𝗽𝗱𝗮𝘁𝗲𝘀 𝗟𝗶𝗻𝗸", callback_data="edit_ulink")],
                 [InlineKeyboardButton("✏️ 𝗘𝗱𝗶𝘁 𝗛𝗲𝗹𝗽 𝗟𝗶𝗻𝗸", callback_data="edit_hlink")],
-                [InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="admin_main_panel")]
+                [InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="open_settings")]
             ])
             await query.message.edit_text(text, reply_markup=buttons, disable_web_page_preview=True)
 
@@ -340,7 +365,7 @@ async def main_callback_handler(client, query: CallbackQuery):
                 return await ask.reply("🚫 **Cancelled.**")
             
             await db.update_setting("updates_link", ask.text.strip())
-            await ask.reply("✅ **Updates Link Updated Successfully!**\nUse /admin to check again.")
+            await ask.reply("✅ **Updates Link Updated Successfully!**")
 
         elif data == "edit_hlink":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
@@ -349,7 +374,7 @@ async def main_callback_handler(client, query: CallbackQuery):
                 return await ask.reply("🚫 **Cancelled.**")
             
             await db.update_setting("help_link", ask.text.strip())
-            await ask.reply("✅ **Help Link Updated Successfully!**\nUse /admin to check again.")
+            await ask.reply("✅ **Help Link Updated Successfully!**")
 
         elif data == "admin_toggles":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
