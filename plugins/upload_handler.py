@@ -1,6 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from config import Config
+from config import Config, admin_filter # 👈 YAHAN admin_filter IMPORT KIYA HAI
 from database import db
 import re
 import secrets
@@ -24,7 +24,8 @@ def parse_time(time_str):
         return 0
 
 
-@Client.on_message((filters.document | filters.video) & filters.user(Config.ADMINS) & filters.private)
+# 👇 YAHAN FILTER CHANGE KIYA HAI (admin_filter lagaya hai)
+@Client.on_message((filters.document | filters.video) & admin_filter & filters.private)
 async def handle_video_upload(client, message):
     file_id = message.document.file_id if message.document else message.video.file_id
     caption = message.caption or "No Caption"
@@ -188,3 +189,4 @@ async def delete_post_later(client, chat_id, msg_id, delay):
         await client.delete_messages(chat_id=chat_id, message_ids=msg_id)
     except:
         pass
+        
