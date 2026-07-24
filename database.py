@@ -53,7 +53,9 @@ class Database:
                 "fsub": False,
                 "auto_delete": 600, # Default 10 Minutes in seconds
                 "updates_link": None,
-                "help_link": None
+                "help_link": None,
+                # 👇 NEW: Default admins ko config se utha kar pehli baar DB me save karega
+                "admins": Config.ADMINS 
             }
             await self.settings.insert_one(default_settings)
             return default_settings
@@ -81,5 +83,28 @@ class Database:
 
     async def set_auto_delete(self, timer_seconds):
         await self.update_setting("auto_delete", timer_seconds)
+
+    # ==========================================
+    # 👇 NEW: 𝗔𝗗𝗠𝗜𝗡 𝗠𝗔𝗡𝗔𝗚𝗘𝗠𝗘𝗡𝗧 (For Database)
+    # ==========================================
+    
+    async def get_admins(self):
+        settings = await self.get_settings()
+        return settings.get("admins", Config.ADMINS)
+
+    async def add_admin_db(self, admin_id):
+        # $addToSet se duplicate ID save nahi hogi
+        await self.settings.update_one(
+            {"_id": "bot_settings"},
+            {"$addToSet": {"admins": admin_id}}, 
+            upsert=True
+        )
+
+    async def remove_admin_db(self, admin_id):
+        # $pull specific ID ko array me se delete kar deta hai
+        await self.settings.update_one(
+            {"_id": "bot_settings"},
+            {"$pull": {"admins": admin_id}}
+        )
 
 db = Database()
