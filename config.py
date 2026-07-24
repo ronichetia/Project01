@@ -1,4 +1,5 @@
 import os
+from pyrogram import filters # 👇 Naya import add kiya
 
 class Config:
     # 𝗔𝗣𝗜 𝗞𝗲𝘆𝘀
@@ -16,4 +17,14 @@ class Config:
     
     # 𝗕𝗼𝘁 𝗦𝗲𝘁𝘁𝗶𝗻𝗴𝘀 (Default)
     AUTO_DELETE_TIME = 600 # 10 Minutes in seconds (Bot chat auto delete)
-    
+
+# ==========================================
+# 👇 NAYA CUSTOM ADMIN FILTER 👇
+# ==========================================
+async def admin_check_func(_, client, message):
+    if not message.from_user:
+        return False
+    return message.from_user.id in Config.ADMINS
+
+# Is filter ko ab baaki files me use karna hai
+admin_filter = filters.create(admin_check_func)
