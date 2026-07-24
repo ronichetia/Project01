@@ -12,6 +12,32 @@ async def start_cmd(client, message):
     if hasattr(db, "add_user"):
         await db.add_user(message.from_user.id)
 
+    # 👇 𝗡𝗘𝗪: 𝗗𝗘𝗘𝗣 𝗟𝗜𝗡𝗞𝗜𝗡𝗚 𝗟𝗢𝗚𝗜𝗖 (File Send Karne Ke Liye)
+    if len(message.command) > 1:
+        file_hash = message.command[1]
+        file_data = await db.get_file(file_hash)
+        
+        if file_data:
+            # Note: Agar aapne F-Sub on rakha hai, toh uska verification aap yahan add kar sakte hain
+            try:
+                msg = await client.send_document(
+                    chat_id=message.chat.id,
+                    document=file_data["file_id"],
+                    caption=file_data.get("caption", "Here is your file!")
+                )
+            except:
+                # Agar pure video file hui toh send_video use karega
+                msg = await client.send_video(
+                    chat_id=message.chat.id,
+                    video=file_data["file_id"],
+                    caption=file_data.get("caption", "Here is your video!")
+                )
+            return
+        else:
+            await message.reply_text("❌ **File not found or expired!**")
+            return
+
+    # 👇 𝗡𝗢𝗥𝗠𝗔𝗟 𝗦𝗧𝗔𝗥𝗧 𝗠𝗘𝗡𝗨
     user_name = message.from_user.first_name
     text = (
         f"> 👋 **Hey {user_name}! Welcome to the Bot**\n\n"
@@ -43,7 +69,7 @@ async def send_admin_panel(message_or_query, is_edit=True):
         [InlineKeyboardButton("📊 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝘀", callback_data="admin_stats"),
          InlineKeyboardButton("📢 𝗕𝗿𝗼𝗮𝗱𝗰𝗮𝘀𝘁", callback_data="admin_broadcast")],
         [InlineKeyboardButton("📺 𝗠𝗮𝗻𝗮𝗴𝗲 𝗖𝗵𝗮𝗻𝗻𝗲𝗹𝘀", callback_data="admin_channels"),
-         InlineKeyboardButton("⚙️ 𝗙-𝗦𝘂b / 𝗔𝘂𝘁𝗼-𝗗𝗲𝗹", callback_data="admin_toggles")],
+         InlineKeyboardButton("⚙️ 𝗙-𝗦𝘂𝗯 / 𝗔𝘂𝘁𝗼-𝗗𝗲𝗹", callback_data="admin_toggles")],
         [InlineKeyboardButton("📝 𝗪𝗲𝗹𝗰𝗼𝗺𝗲 𝗠𝘀𝗴", callback_data="admin_welcome"),
          InlineKeyboardButton("🔗 𝗣𝗼𝘀𝘁 𝗕𝘂𝘁𝘁𝗼𝗻𝘀", callback_data="admin_post_btns")],
         [InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸 𝘁𝗼 𝗦𝗲𝘁𝘁𝗶𝗻𝗴𝘀", callback_data="open_settings")]
@@ -61,7 +87,8 @@ async def render_toggles_menu(query):
     fsub_on = settings.get("fsub", False)
     autodel = settings.get("auto_delete", 600)
 
-    fsub_text = "✅ 𝗙-𝗦𝘂𝗯: 𝗢𝗡" if fsub_on else "❌ 𝗙-𝗦𝘂b: 𝗢𝗙𝗙"
+    # Dynamic Texts Based on DB State
+    fsub_text = "✅ 𝗙-𝗦𝘂𝗯: 𝗢𝗡" if fsub_on else "❌ 𝗙-𝗦𝘂𝗯: 𝗢𝗙𝗙"
     
     if autodel == 600: del_text = "⏱️ 𝗔𝘂𝘁𝗼-𝗗𝗲𝗹: 𝟭𝟬𝗺"
     elif autodel == 3600: del_text = "⏱️ 𝗔𝘂𝘁𝗼-𝗗𝗲𝗹: 𝟭𝗵"
@@ -83,12 +110,8 @@ async def render_toggles_menu(query):
 
 
 # ==================== 3. ALL CALLBACK HANDLERS ====================
-# ✅ FIXED: Strict Filter Added to prevent stealing other file's callbacks!
-START_CALLBACK_FILTER = filters.regex(
-    r"^(close_panel|open_settings|back_start|user_help|admin_main_panel|admin_channels|admin_broadcast|admin_stats|admin_welcome|reset_welcome|edit_welcome|admin_post_btns|edit_ulink|edit_hlink|admin_toggles|toggle_fsub|toggle_autodel)$"
-)
-
-@Client.on_callback_query(START_CALLBACK_FILTER)
+# 👇 NEW: Regex filter lagaya gaya hai taaki "post|" wale button clash na karein
+@Client.on_callback_query(filters.regex(r"^(close_panel|open_settings|user_help|back_start|admin_|edit_|reset_|toggle_)"))
 async def main_callback_handler(client, query: CallbackQuery):
     data = query.data
     user_id = query.from_user.id
@@ -108,7 +131,7 @@ async def main_callback_handler(client, query: CallbackQuery):
                 "» **ᴏᴜʀ ᴄᴏᴍᴍᴜɴɪᴛʏ:** Aᴇʀᴏ ʙᴏᴛs\n"
                 "» **ᴀɴɪᴍᴇ ᴄʜᴀɴɴᴇʟ:** sʜᴀɴᴜ ᴀɴɪᴍᴇ\n"
                 "» **Sʜᴀɴᴜ Aɴɪᴍᴇ:** Sʜᴀɴᴜ Aɴɪᴍᴇ Cʜᴀᴛᴛɪɴ𝗀\n"
-                "» **Sʜᴀɴᴜ Aɴɪ繆ᴇ Nᴇᴡs:** Sʜᴀɴᴜ Aɴɪᴍᴇ Nᴇᴡs\n"
+                "» **Sʜᴀɴᴜ Aɴɪᴍᴇ Nᴇᴡs:** Sʜᴀɴᴜ Aɴɪᴍᴇ Nᴇᴡs\n"
                 "» **ᴅᴇᴠᴇʟᴏᴘᴇʀ:** Mɪᴋᴏʏᴏ"
             )
             btn_list = [
@@ -206,7 +229,6 @@ async def main_callback_handler(client, query: CallbackQuery):
 
         elif data == "edit_welcome":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
-            await query.answer()
             ask_msg = await query.message.chat.ask("📝 **Send the new Welcome Message.**\n\n(Send `/cancel` to abort)", timeout=120)
             if ask_msg.text.lower() == "/cancel":
                 return await ask_msg.reply("🚫 **Cancelled.**")
@@ -239,7 +261,6 @@ async def main_callback_handler(client, query: CallbackQuery):
 
         elif data == "edit_ulink":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
-            await query.answer()
             ask = await query.message.chat.ask("🔗 **Naya Updates Link bhejein:**\n\n(Button hatane ke liye `OFF` bhejein ya `/cancel` likhein)", timeout=120)
             if ask.text.lower() == "/cancel":
                 return await ask.reply("🚫 **Cancelled.**")
@@ -249,13 +270,13 @@ async def main_callback_handler(client, query: CallbackQuery):
 
         elif data == "edit_hlink":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
-            await query.answer()
             ask = await query.message.chat.ask("🔗 **Naya Help Link bhejein:**\n\n(Button hatane ke liye `OFF` bhejein ya `/cancel` likhein)", timeout=120)
             if ask.text.lower() == "/cancel":
                 return await ask.reply("🚫 **Cancelled.**")
             
             await db.update_setting("help_link", ask.text.strip())
             await ask.reply("✅ **Help Link Updated Successfully!**\nUse /admin to check again.")
+
 
         # ⚙️ ADMIN TOGGLES MENU
         elif data == "admin_toggles":
