@@ -43,9 +43,9 @@ async def send_admin_panel(message_or_query, is_edit=True):
         [InlineKeyboardButton("📊 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝘀", callback_data="admin_stats"),
          InlineKeyboardButton("📢 𝗕𝗿𝗼𝗮𝗱𝗰𝗮𝘀𝘁", callback_data="admin_broadcast")],
         [InlineKeyboardButton("📺 𝗠𝗮𝗻𝗮𝗴𝗲 𝗖𝗵𝗮𝗻𝗻𝗲𝗹𝘀", callback_data="admin_channels"),
-         InlineKeyboardButton("⚙️ 𝗙-𝗦𝘂𝗯 / 𝗔𝘂𝘁𝗼-𝗗𝗲𝗹", callback_data="admin_toggles")],
+         InlineKeyboardButton("⚙️ 𝗙-𝗦𝘂b / 𝗔𝘂𝘁𝗼-𝗗𝗲𝗹", callback_data="admin_toggles")],
         [InlineKeyboardButton("📝 𝗪𝗲𝗹𝗰𝗼𝗺𝗲 𝗠𝘀𝗴", callback_data="admin_welcome"),
-         InlineKeyboardButton("🔗 𝗣𝗼𝘀𝘁 𝗕𝘂𝘁𝘁𝗼𝗻𝘀", callback_data="admin_post_btns")], # 👇 NEW BUTTON ADDED HERE
+         InlineKeyboardButton("🔗 𝗣𝗼𝘀𝘁 𝗕𝘂𝘁𝘁𝗼𝗻𝘀", callback_data="admin_post_btns")],
         [InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸 𝘁𝗼 𝗦𝗲𝘁𝘁𝗶𝗻𝗴𝘀", callback_data="open_settings")]
     ])
 
@@ -61,8 +61,7 @@ async def render_toggles_menu(query):
     fsub_on = settings.get("fsub", False)
     autodel = settings.get("auto_delete", 600)
 
-    # Dynamic Texts Based on DB State
-    fsub_text = "✅ 𝗙-𝗦𝘂𝗯: 𝗢𝗡" if fsub_on else "❌ 𝗙-𝗦𝘂𝗯: 𝗢𝗙𝗙"
+    fsub_text = "✅ 𝗙-𝗦𝘂𝗯: 𝗢𝗡" if fsub_on else "❌ 𝗙-𝗦𝘂b: 𝗢𝗙𝗙"
     
     if autodel == 600: del_text = "⏱️ 𝗔𝘂𝘁𝗼-𝗗𝗲𝗹: 𝟭𝟬𝗺"
     elif autodel == 3600: del_text = "⏱️ 𝗔𝘂𝘁𝗼-𝗗𝗲𝗹: 𝟭𝗵"
@@ -84,7 +83,12 @@ async def render_toggles_menu(query):
 
 
 # ==================== 3. ALL CALLBACK HANDLERS ====================
-@Client.on_callback_query()
+# ✅ FIXED: Strict Filter Added to prevent stealing other file's callbacks!
+START_CALLBACK_FILTER = filters.regex(
+    r"^(close_panel|open_settings|back_start|user_help|admin_main_panel|admin_channels|admin_broadcast|admin_stats|admin_welcome|reset_welcome|edit_welcome|admin_post_btns|edit_ulink|edit_hlink|admin_toggles|toggle_fsub|toggle_autodel)$"
+)
+
+@Client.on_callback_query(START_CALLBACK_FILTER)
 async def main_callback_handler(client, query: CallbackQuery):
     data = query.data
     user_id = query.from_user.id
@@ -104,7 +108,7 @@ async def main_callback_handler(client, query: CallbackQuery):
                 "» **ᴏᴜʀ ᴄᴏᴍᴍᴜɴɪᴛʏ:** Aᴇʀᴏ ʙᴏᴛs\n"
                 "» **ᴀɴɪᴍᴇ ᴄʜᴀɴɴᴇʟ:** sʜᴀɴᴜ ᴀɴɪᴍᴇ\n"
                 "» **Sʜᴀɴᴜ Aɴɪᴍᴇ:** Sʜᴀɴᴜ Aɴɪᴍᴇ Cʜᴀᴛᴛɪɴ𝗀\n"
-                "» **Sʜᴀɴᴜ Aɴɪᴍᴇ Nᴇᴡs:** Sʜᴀɴᴜ Aɴɪᴍᴇ Nᴇᴡs\n"
+                "» **Sʜᴀɴᴜ Aɴɪ繆ᴇ Nᴇᴡs:** Sʜᴀɴᴜ Aɴɪᴍᴇ Nᴇᴡs\n"
                 "» **ᴅᴇᴠᴇʟᴏᴘᴇʀ:** Mɪᴋᴏʏᴏ"
             )
             btn_list = [
@@ -197,13 +201,12 @@ async def main_callback_handler(client, query: CallbackQuery):
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
             await db.reset_welcome_msg()
             await query.answer("Message Reset to Default!", show_alert=False)
-            # Re-render menu
             query.data = "admin_welcome"
             await main_callback_handler(client, query)
 
         elif data == "edit_welcome":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
-            # Asking new message dynamically
+            await query.answer()
             ask_msg = await query.message.chat.ask("📝 **Send the new Welcome Message.**\n\n(Send `/cancel` to abort)", timeout=120)
             if ask_msg.text.lower() == "/cancel":
                 return await ask_msg.reply("🚫 **Cancelled.**")
@@ -211,7 +214,7 @@ async def main_callback_handler(client, query: CallbackQuery):
             await db.update_welcome_msg(ask_msg.text)
             await ask_msg.reply("✅ **New Welcome Message Set Successfully!**\nUse /admin to check again.")
 
-        # 🔗 POST BUTTONS MANAGER (NEWLY ADDED)
+        # 🔗 POST BUTTONS MANAGER
         elif data == "admin_post_btns":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
             settings = await db.get_settings()
@@ -236,6 +239,7 @@ async def main_callback_handler(client, query: CallbackQuery):
 
         elif data == "edit_ulink":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
+            await query.answer()
             ask = await query.message.chat.ask("🔗 **Naya Updates Link bhejein:**\n\n(Button hatane ke liye `OFF` bhejein ya `/cancel` likhein)", timeout=120)
             if ask.text.lower() == "/cancel":
                 return await ask.reply("🚫 **Cancelled.**")
@@ -245,13 +249,13 @@ async def main_callback_handler(client, query: CallbackQuery):
 
         elif data == "edit_hlink":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
+            await query.answer()
             ask = await query.message.chat.ask("🔗 **Naya Help Link bhejein:**\n\n(Button hatane ke liye `OFF` bhejein ya `/cancel` likhein)", timeout=120)
             if ask.text.lower() == "/cancel":
                 return await ask.reply("🚫 **Cancelled.**")
             
             await db.update_setting("help_link", ask.text.strip())
             await ask.reply("✅ **Help Link Updated Successfully!**\nUse /admin to check again.")
-
 
         # ⚙️ ADMIN TOGGLES MENU
         elif data == "admin_toggles":
@@ -270,11 +274,10 @@ async def main_callback_handler(client, query: CallbackQuery):
             settings = await db.get_settings()
             curr = settings.get("auto_delete", 600)
             
-            # Smart Cycle logic for Auto-Delete timers
-            if curr == 600: new_val = 3600       # 10m -> 1h
-            elif curr == 3600: new_val = 86400   # 1h -> 1d
-            elif curr == 86400: new_val = 0      # 1d -> OFF
-            else: new_val = 600                  # OFF -> 10m
+            if curr == 600: new_val = 3600
+            elif curr == 3600: new_val = 86400
+            elif curr == 86400: new_val = 0
+            else: new_val = 600
             
             await db.set_auto_delete(new_val)
             await query.answer("Auto-Delete Timer Updated!", show_alert=False)
