@@ -1,12 +1,12 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from database import db
-from config import Config
+from config import Config, admin_filter # 👈 YAHAN admin_filter IMPORT KIYA HAI
 import asyncio
 import re
 
 # ==================== 1. ADD CHANNEL COMMAND (Step-by-Step) ====================
-@Client.on_message(filters.command("addchannel") & filters.user(Config.ADMINS))
+@Client.on_message(filters.command("addchannel") & admin_filter) # 👈 YAHAN FILTER CHANGE KIYA HAI
 async def add_channel_step_by_step(client, message):
     chat = message.chat
     
@@ -122,7 +122,7 @@ async def cancel_flow_handler(client, query):
 
 
 # ==================== 2. DELETE CHANNEL COMMAND ====================
-@Client.on_message(filters.command("delchannel") & filters.user(Config.ADMINS))
+@Client.on_message(filters.command("delchannel") & admin_filter) # 👈 YAHAN FILTER CHANGE KIYA HAI
 async def del_channel(client, message):
     try:
         # Command se ID extract karega (e.g., /delchannel -100123456789)
@@ -135,3 +135,4 @@ async def del_channel(client, message):
         await message.reply_text("❌ **Invalid ID!**\nChannel ID numbers mein honi chahiye.")
     except Exception as e:
         await message.reply_text(f"❌ **Error:** `{e}`")
+        
