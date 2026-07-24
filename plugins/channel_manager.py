@@ -3,6 +3,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from database import db
 from config import Config
 import asyncio
+import re
 
 # ==================== 1. ADD CHANNEL COMMAND (Step-by-Step) ====================
 @Client.on_message(filters.command("addchannel") & filters.user(Config.ADMINS))
@@ -25,21 +26,37 @@ async def add_channel_step_by_step(client, message):
             return await message.reply("🚫 **Cancelled.**")
         ch_id = int(id_msg.text)
 
+        # 🛡️ VERIFICATION STEP: Check if bot is an Admin in the channel (Peer ID Fix)
+        try:
+            verify_chat = await client.get_chat(ch_id)
+        except Exception as e:
+            return await message.reply(
+                f"❌ **Error:** `Peer id invalid`\n\n"
+                f"⚠️ **Main is channel ko access nahi kar pa raha hu!**\n"
+                f"Kripya pehle mujhe is channel (`{ch_id}`) mein **Admin** banayein, uske baad add karein.\n\n"
+                f"**System Error:** `{e}`"
+            )
+
         # STEP 2: TITLE
+        fetched_title = verify_chat.title if verify_chat else "Unknown"
         title_msg = await chat.ask(
-            f"Send the title for this channel (e.g. \"One Piece\"):\n\n**ID:** `{ch_id}`",
+            f"Send the title for this channel (e.g. \"One Piece\"):\n\n**ID:** `{ch_id}`\n**Fetched Title:** `{fetched_title}`",
             reply_markup=cancel_btn, timeout=120
         )
         if title_msg.text.lower() == "/cancel": return
         title = title_msg.text
 
-        # STEP 3: DESCRIPTION
-        desc_msg = await chat.ask(
-            "Send a description for this channel:\n(e.g., Genres: Romance, Drama)",
+        # STEP 3: GENRES (Replaced Description)
+        genre_msg = await chat.ask(
+            "Send **Genres** for this channel (e.g., Romance, Drama) or send `/skip`:\n\n(No need to write 'Genres:', just send the names.)",
             reply_markup=cancel_btn, timeout=120
         )
-        if desc_msg.text.lower() == "/cancel": return
-        desc = desc_msg.text
+        if genre_msg.text.lower() == "/cancel": return
+        
+        desc = ""
+        if genre_msg.text.lower() != "/skip":
+            # Agar user ne galti se 'Genres: Drama' likha hai to automatically clean kar dega
+            desc = re.sub(r"(?i)^genres?:\s*", "", genre_msg.text)
 
         # STEP 4: POST MODE
         mode_msg = await chat.ask(
@@ -82,7 +99,7 @@ async def add_channel_step_by_step(client, message):
             "✅ **Channel Added Successfully!**\n\n"
             f"**Title:** {title}\n"
             f"**ID:** `{ch_id}`\n"
-            f"**Description:** {desc}\n"
+            f"**Genres:** {desc if desc else 'Skipped'}\n"
             f"**Mode:** {post_mode}\n"
             f"**Auto-Delete:** {auto_del}\n"
         )
