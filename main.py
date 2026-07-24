@@ -2,6 +2,7 @@ from pyrogram import Client
 from pyrogram.enums import ParseMode
 from config import Config
 import asyncio
+import pyromod # ✅ ADDED FOR STEP-BY-STEP CONVERSATION
 
 class PremiumBot(Client):
     def __init__(self):
@@ -25,4 +26,3 @@ class PremiumBot(Client):
 if __name__ == "__main__":
     bot = PremiumBot()
     bot.run()
-    
