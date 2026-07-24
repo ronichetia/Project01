@@ -3,3 +3,4 @@ tgcrypto
 motor
 asyncio
 dnspython
+pyromod
