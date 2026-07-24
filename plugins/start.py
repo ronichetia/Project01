@@ -53,18 +53,51 @@ async def start_cmd(client, message):
     await message.reply_text(text, reply_markup=buttons)
 
 
-# ==================== 2. DIRECT ADMIN COMMAND ====================
+# ==================== 2. ADMIN PANEL & COMMANDS ====================
 @Client.on_message(filters.command("admin") & filters.user(Config.ADMINS))
 async def admin_cmd(client, message):
     await send_admin_panel(message, is_edit=False)
 
 
-# Helper function: Admin Panel Interface
+# 👇 NEW: DIRECT COMMANDS FOR ADD / REMOVE ADMIN
+@Client.on_message(filters.command("addadmin") & filters.user(Config.ADMINS))
+async def add_admin_cmd(client, message):
+    try:
+        new_admin_id = int(message.command[1])
+        Config.ADMINS = list(Config.ADMINS) # Convert to list if it's a tuple
+        if new_admin_id not in Config.ADMINS:
+            Config.ADMINS.append(new_admin_id)
+            await message.reply_text(f"> ✅ **𝗦𝘂𝗰𝗰𝗲𝘀𝘀:** 𝖴𝗌𝖾𝗋 `{new_admin_id}` 𝗄𝗈 𝖠𝖽𝗆𝗂𝗇 𝖻𝖺𝗇𝖺 𝖽𝗂𝗒𝖺 𝗀𝖺𝗒𝖺 𝗁𝖺𝗂!")
+        else:
+            await message.reply_text("⚠️ **𝖸𝖾 𝖴𝗌𝖾𝗋 𝗉𝖾𝗁𝗅𝖾 𝗌𝖾 𝗁𝗂 𝖠𝖽𝗆𝗂𝗇 𝗁𝖺𝗂!**")
+    except IndexError:
+        await message.reply_text("❌ **Format Galat Hai!**\nUse: `/addadmin UserID`")
+    except ValueError:
+        await message.reply_text("❌ **Invalid ID!** Sirf numbers enter karein.")
+
+@Client.on_message(filters.command("deladmin") & filters.user(Config.ADMINS))
+async def del_admin_cmd(client, message):
+    try:
+        del_admin_id = int(message.command[1])
+        Config.ADMINS = list(Config.ADMINS)
+        if del_admin_id in Config.ADMINS:
+            Config.ADMINS.remove(del_admin_id)
+            await message.reply_text(f"> 🗑️ **𝗦𝘂𝗰𝗰𝗲𝘀𝘀:** 𝖴𝗌𝖾𝗋 `{del_admin_id}` 𝗄𝗈 𝖠𝖽𝗆𝗂𝗇𝗌 𝗌𝖾 𝗁𝖺𝗍𝖺 𝖽𝗂𝗒𝖺 𝗀𝖺𝗒𝖺 𝗁𝖺𝗂.")
+        else:
+            await message.reply_text("⚠️ **𝖸𝖾 𝖴𝗌𝖾𝗋 𝖠𝖽𝗆𝗂𝗇 𝗅𝗂𝗌𝗍 𝗆𝖾 𝗇𝖺𝗁𝗂 𝗁𝖺𝗂!**")
+    except IndexError:
+        await message.reply_text("❌ **Format Galat Hai!**\nUse: `/deladmin UserID`")
+    except ValueError:
+        await message.reply_text("❌ **Invalid ID!** Sirf numbers enter karein.")
+
+
+# Helper function: Admin Panel Interface (UPDATED)
 async def send_admin_panel(message_or_query, is_edit=True):
     text = (
         "> 👑 **𝗣𝗿𝗲𝗺𝗶𝘂𝗺 𝗔𝗱𝗺𝗶𝗻 𝗖𝗼𝗻𝘁𝗿𝗼𝗹 𝗣𝗮𝗻𝗲𝗹**\n\n"
         "**𝗪𝗲𝗹𝗰𝗼𝗺𝗲 𝗕𝗼𝘀𝘀!** 𝖸𝖺𝗁𝖺𝗇 𝗌𝖾 𝖺𝖺𝗉 𝖻𝗈𝗍 𝗄𝗂 𝗌𝖺𝖺𝗋𝗂 𝗌𝖾𝗍𝗍𝗂𝗇𝗀𝗌 𝖺𝗎𝗋 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝖼𝗈𝗇𝗍𝗋𝗈𝗅 𝗄𝖺𝗋 𝗌𝖺𝗄𝗍𝖾 𝗁𝖺𝗂𝗇:"
     )
+    # 👇 NEW: 👥 𝗠𝗮𝗻𝗮𝗴𝗲 𝗔𝗱𝗺𝗶𝗻𝘀 Button Added
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("📊 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝘀", callback_data="admin_stats"),
          InlineKeyboardButton("📢 𝗕𝗿𝗼𝗮𝗱𝗰𝗮𝘀𝘁", callback_data="admin_broadcast")],
@@ -72,6 +105,7 @@ async def send_admin_panel(message_or_query, is_edit=True):
          InlineKeyboardButton("⚙️ 𝗙-𝗦𝘂𝗯 / 𝗔𝘂𝘁𝗼-𝗗𝗲𝗹", callback_data="admin_toggles")],
         [InlineKeyboardButton("📝 𝗪𝗲𝗹𝗰𝗼𝗺𝗲 𝗠𝘀𝗴", callback_data="admin_welcome"),
          InlineKeyboardButton("🔗 𝗣𝗼𝘀𝘁 𝗕𝘂𝘁𝘁𝗼𝗻𝘀", callback_data="admin_post_btns")],
+        [InlineKeyboardButton("👥 𝗠𝗮𝗻𝗮𝗴𝗲 𝗔𝗱𝗺𝗶𝗻𝘀", callback_data="admin_manage")],
         [InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸 𝘁𝗼 𝗦𝗲𝘁𝘁𝗶𝗻𝗴𝘀", callback_data="open_settings")]
     ])
 
@@ -87,7 +121,6 @@ async def render_toggles_menu(query):
     fsub_on = settings.get("fsub", False)
     autodel = settings.get("auto_delete", 600)
 
-    # Dynamic Texts Based on DB State
     fsub_text = "✅ 𝗙-𝗦𝘂𝗯: 𝗢𝗡" if fsub_on else "❌ 𝗙-𝗦𝘂𝗯: 𝗢𝗙𝗙"
     
     if autodel == 600: del_text = "⏱️ 𝗔𝘂𝘁𝗼-𝗗𝗲𝗹: 𝟭𝟬𝗺"
@@ -110,19 +143,17 @@ async def render_toggles_menu(query):
 
 
 # ==================== 3. ALL CALLBACK HANDLERS ====================
-# 👇 NEW: Regex filter lagaya gaya hai taaki "post|" wale button clash na karein
-@Client.on_callback_query(filters.regex(r"^(close_panel|open_settings|user_help|back_start|admin_|edit_|reset_|toggle_)"))
+# 👇 NEW: Regex filter updated for add/del admin buttons
+@Client.on_callback_query(filters.regex(r"^(close_panel|open_settings|user_help|back_start|admin_|edit_|reset_|toggle_|add_admin|del_admin)"))
 async def main_callback_handler(client, query: CallbackQuery):
     data = query.data
     user_id = query.from_user.id
     is_admin = user_id in Config.ADMINS
 
     try:
-        # ❌ CLOSE BUTTON
         if data == "close_panel":
             await query.message.delete()
 
-        # ⛩️ SETTINGS BUTTON
         elif data == "open_settings":
             text = (
                 "> ⚙️ **𝗕𝗼𝘁 𝗜𝗻𝗳𝗼 & 𝗦𝗲𝘁𝘁𝗶𝗻𝗴𝘀**\n\n"
@@ -142,11 +173,9 @@ async def main_callback_handler(client, query: CallbackQuery):
                 btn_list.append([InlineKeyboardButton("👑 𝗔𝗱𝗺𝗶𝗻 𝗖𝗼𝗻𝘁𝗿𝗼𝗹𝘀", callback_data="admin_main_panel")])
             await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(btn_list))
 
-        # 🔙 BACK TO START MENU
         elif data == "back_start":
             await start_cmd(client, query.message)
 
-        # ❓ HELP BUTTON
         elif data == "user_help":
             text = (
                 "> ❓ **𝗛𝗲𝗹𝗽 & 𝗜𝗻𝘀𝘁𝗿𝘂𝗰𝘁𝗶𝗼𝗻𝘀**\n\n"
@@ -160,17 +189,65 @@ async def main_callback_handler(client, query: CallbackQuery):
                     "\n\n👑 **𝗔𝗱𝗺𝗶𝗻 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀:**\n"
                     "🔸 `/addchannel [ID]` - Channel add karein\n"
                     "🔸 `/delchannel [ID]` - Channel remove karein\n"
+                    "🔸 `/addadmin [ID]` - Naya admin add karein\n"
+                    "🔸 `/deladmin [ID]` - Admin remove karein\n"
                     "🔸 `/broadcast` - Reply to message to broadcast"
                 )
             buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="back_start")]])
             await query.message.edit_text(text, reply_markup=buttons)
 
-        # 👑 ADMIN PANEL ACCESS
         elif data == "admin_main_panel":
             if not is_admin: return await query.answer("❌ Aap Admin Nahi Hain!", show_alert=True)
             await send_admin_panel(query.message, is_edit=True)
+            
+        # 👇 NEW: ADMIN MANAGE SECTION (UI Buttons)
+        elif data == "admin_manage":
+            if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
+            text = (
+                "> 👥 **𝗔𝗱𝗺𝗶𝗻 𝗠𝗮𝗻𝗮𝗴𝗲𝗺𝗲𝗻𝘁**\n\n"
+                f"**Current Admins Count:** `{len(Config.ADMINS)}`\n\n"
+                "Naya admin add ya remove karne ke liye buttons ka use karein ya seedha `/addadmin ID` command use karein."
+            )
+            buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("➕ 𝗔𝗱𝗱 𝗔𝗱𝗺𝗶𝗻", callback_data="add_admin"),
+                 InlineKeyboardButton("➖ 𝗥𝗲𝗺𝗼𝘃𝗲 𝗔𝗱𝗺𝗶𝗻", callback_data="del_admin")],
+                [InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="admin_main_panel")]
+            ])
+            await query.message.edit_text(text, reply_markup=buttons)
 
-        # 📺 MANAGE CHANNELS
+        elif data == "add_admin":
+            if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
+            ask = await query.message.chat.ask("➕ **Naye Admin ka User ID bhejein:**\n\n(Cancel karne ke liye `/cancel` likhein)", timeout=120)
+            if ask.text.lower() == "/cancel": return await ask.reply("🚫 **Cancelled.**")
+            
+            try:
+                new_id = int(ask.text.strip())
+                Config.ADMINS = list(Config.ADMINS)
+                if new_id not in Config.ADMINS:
+                    Config.ADMINS.append(new_id)
+                    await ask.reply(f"✅ **User `{new_id}` ko Admin bana diya gaya hai!**\nUse /admin to verify.")
+                else:
+                    await ask.reply("⚠️ **Ye user pehle se admin hai!**")
+            except ValueError:
+                await ask.reply("❌ **Invalid ID! Sirf numbers allow hain.**")
+
+        elif data == "del_admin":
+            if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
+            ask = await query.message.chat.ask("➖ **Jise Admin se hatana hai uska User ID bhejein:**\n\n(Cancel karne ke liye `/cancel` likhein)", timeout=120)
+            if ask.text.lower() == "/cancel": return await ask.reply("🚫 **Cancelled.**")
+            
+            try:
+                del_id = int(ask.text.strip())
+                Config.ADMINS = list(Config.ADMINS)
+                if del_id in Config.ADMINS:
+                    Config.ADMINS.remove(del_id)
+                    await ask.reply(f"🗑️ **User `{del_id}` ko Admins se hata diya gaya hai!**")
+                else:
+                    await ask.reply("⚠️ **Ye user Admin list me nahi hai!**")
+            except ValueError:
+                await ask.reply("❌ **Invalid ID! Sirf numbers allow hain.**")
+
+
         elif data == "admin_channels":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
             text = (
@@ -184,12 +261,10 @@ async def main_callback_handler(client, query: CallbackQuery):
             buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="admin_main_panel")]])
             await query.message.edit_text(text, reply_markup=buttons)
 
-        # 📢 BROADCAST
         elif data == "admin_broadcast":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
             await query.answer("📢 Broadcast ready! Kisi bhi message ko reply karke /broadcast likhein.", show_alert=True)
 
-        # 📊 BOT STATS
         elif data == "admin_stats":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
             users = await db.get_all_users()
@@ -198,11 +273,11 @@ async def main_callback_handler(client, query: CallbackQuery):
                 "> 📊 **𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀**\n\n"
                 f"👤 **Total Users:** `{len(users)}`\n"
                 f"📺 **Connected Channels:** `{len(channels)}`\n"
+                f"👥 **Total Admins:** `{len(Config.ADMINS)}`"
             )
             buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 𝗕𝗮𝗰𝗸", callback_data="admin_main_panel")]])
             await query.message.edit_text(text, reply_markup=buttons)
 
-        # 📝 WELCOME MESSAGE MANAGER
         elif data == "admin_welcome":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
             settings = await db.get_settings()
@@ -236,7 +311,6 @@ async def main_callback_handler(client, query: CallbackQuery):
             await db.update_welcome_msg(ask_msg.text)
             await ask_msg.reply("✅ **New Welcome Message Set Successfully!**\nUse /admin to check again.")
 
-        # 🔗 POST BUTTONS MANAGER
         elif data == "admin_post_btns":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
             settings = await db.get_settings()
@@ -277,13 +351,10 @@ async def main_callback_handler(client, query: CallbackQuery):
             await db.update_setting("help_link", ask.text.strip())
             await ask.reply("✅ **Help Link Updated Successfully!**\nUse /admin to check again.")
 
-
-        # ⚙️ ADMIN TOGGLES MENU
         elif data == "admin_toggles":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
             await render_toggles_menu(query)
 
-        # 🔄 DYNAMIC TOGGLE LOGICS
         elif data == "toggle_fsub":
             if not is_admin: return await query.answer("❌ Only Admins!", show_alert=True)
             await db.toggle_fsub()
