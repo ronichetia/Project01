@@ -30,10 +30,10 @@ class Database:
         return await self.files.find_one({"_id": file_hash})
 
     # 𝗖𝗵𝗮𝗻𝗻𝗲𝗹 𝗠𝗮𝗻𝗮𝗴𝗲𝗺𝗲𝗻𝘁
-    async def add_channel(self, channel_id, channel_name):
+    async def add_channel(self, channel_id, channel_data):
         await self.channels.update_one(
             {"_id": channel_id},
-            {"$set": {"name": channel_name}},
+            {"$set": channel_data},
             upsert=True
         )
 
@@ -43,51 +43,43 @@ class Database:
     async def remove_channel(self, channel_id):
         await self.channels.delete_one({"_id": channel_id})
 
-    # ⚙️ 𝗕𝗼𝘁 𝗦𝗲𝘁𝘁𝗶𝗻𝗴𝘀 𝗠𝗮𝗻𝗮𝗴𝗲𝗺𝗲𝗻𝘁 (𝗡𝗲𝘄𝗹𝘆 𝗔𝗱𝗱𝗲𝗱)
+    # ⚙️ 𝗕𝗼𝘁 𝗦𝗲𝘁𝘁𝗶𝗻𝗴𝘀 𝗠𝗮𝗻𝗮𝗴𝗲𝗺𝗲𝗻𝘁
     async def get_settings(self):
-        # Ek default document return karega agar pehle se nahi hai
         settings = await self.settings.find_one({"_id": "bot_settings"})
         if not settings:
             default_settings = {
                 "_id": "bot_settings",
                 "welcome_msg": "default", 
                 "fsub": False,
-                "auto_delete": 600 # Default 10 Minutes in seconds
+                "auto_delete": 600, # Default 10 Minutes in seconds
+                "updates_link": None,
+                "help_link": None
             }
             await self.settings.insert_one(default_settings)
             return default_settings
         return settings
 
-    async def update_welcome_msg(self, msg_text):
+    async def update_setting(self, key, value):
+        """Generic function to update any setting dynamically"""
         await self.settings.update_one(
             {"_id": "bot_settings"},
-            {"$set": {"welcome_msg": msg_text}},
+            {"$set": {key: value}},
             upsert=True
         )
+
+    async def update_welcome_msg(self, msg_text):
+        await self.update_setting("welcome_msg", msg_text)
 
     async def reset_welcome_msg(self):
-        await self.settings.update_one(
-            {"_id": "bot_settings"},
-            {"$set": {"welcome_msg": "default"}},
-            upsert=True
-        )
+        await self.update_setting("welcome_msg", "default")
 
     async def toggle_fsub(self):
-        # Current status check karke usko reverse (toggle) kar dega
         settings = await self.get_settings()
         new_status = not settings.get("fsub", False)
-        await self.settings.update_one(
-            {"_id": "bot_settings"},
-            {"$set": {"fsub": new_status}},
-            upsert=True
-        )
+        await self.update_setting("fsub", new_status)
         return new_status
 
     async def set_auto_delete(self, timer_seconds):
-        await self.settings.update_one(
-            {"_id": "bot_settings"},
-            {"$set": {"auto_delete": timer_seconds}},
-            upsert=True
-        )
+        await self.update_setting("auto_delete", timer_seconds)
 
 db = Database()
