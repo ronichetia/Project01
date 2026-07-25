@@ -5,6 +5,20 @@ from config import Config
 from database import db
 import asyncio
 
+# ⏱️ Helper function: String Timer ("30s", "5m") ko seconds me convert karne ke liye
+def parse_time(time_str):
+    if not time_str or str(time_str).lower() in ["0", "off", "none"]:
+        return 0
+    time_str = str(time_str).lower()
+    if time_str.endswith('s'): return int(time_str[:-1])
+    if time_str.endswith('m'): return int(time_str[:-1]) * 60
+    if time_str.endswith('h'): return int(time_str[:-1]) * 3600
+    if time_str.endswith('d'): return int(time_str[:-1]) * 86400
+    try:
+        return int(time_str)
+    except:
+        return 0
+
 # 🛡️ 𝗦𝗺𝗮𝗿𝘁 𝗙-𝗦𝘂𝗯 𝗖𝗵𝗲𝗰𝗸𝗲𝗿 (Database + Config Connected)
 async def check_fsub(client, user_id):
     settings = await db.get_settings()
@@ -52,24 +66,29 @@ async def start_cmd(client, message):
         if not file_data:
             return await message.reply_text("❌ **𝖸𝖾 𝗅𝗂𝗇𝗄 𝖾𝗑𝗉𝗂𝗋𝖾 𝗁𝗈 𝖼𝗁𝗎𝗄𝗂 𝗁𝖺𝗂 𝗒𝖺 𝖿𝗂𝗅𝖾 𝖽𝖾𝗅𝖾𝗍𝖾 𝗄𝖺𝗋 𝖽𝗂 𝗀𝖺𝗒𝗂 𝗁𝖺𝗂.**")
 
-        # ⏱️ Get Dynamic Timer (Fallback to Config if not set)
-        auto_del_sec = settings.get("auto_delete", Config.AUTO_DELETE_TIME)
-        del_min = auto_del_sec // 60
+        # ⏱️ Get Dynamic Timer from Settings
+        auto_del_str = settings.get("auto_delete", str(Config.AUTO_DELETE_TIME))
+        timer_seconds = parse_time(auto_del_str)
+        
+        # Show time in caption smartly
+        if timer_seconds >= 60:
+            time_display = f"{timer_seconds // 60} minutes"
+        else:
+            time_display = f"{timer_seconds} seconds"
 
         # 📤 𝗦𝗲𝗻𝗱 𝗩𝗶𝗱𝗲𝗼 𝘁𝗼 𝗨𝘀𝗲𝗿
-        sent_video = await client.send_cached_media(
-            chat_id=message.chat.id,
-            file_id=file_data["file_id"],
-            caption=f"**{file_data['caption']}**\n\n> ⚠️ *𝖸𝖾 𝖿𝗂𝗅𝖾 {del_min} 𝗆𝗂𝗇𝗎𝗍𝖾𝗌 𝗆𝖾 𝖺𝗎𝗍𝗈-𝖽𝖾𝗅𝖾𝗍𝖾 𝗁𝗈 𝗃𝖺𝗒𝖾𝗀𝗂.*"
-        )
-        
-        # 🗑️ 𝗔𝘂𝘁𝗼-𝗗𝗲𝗹𝗲𝘁𝗲 𝗧𝗶𝗺𝗲𝗿
-        await asyncio.sleep(auto_del_sec)
         try:
-            await sent_video.delete()
-            await message.reply_text("🗑️ **Your video was deleted due to Copyright Policy!**")
-        except Exception:
-            pass
+            sent_video = await client.send_cached_media(
+                chat_id=message.chat.id,
+                file_id=file_data["file_id"],
+                caption=f"**{file_data['caption']}**\n\n> ⚠️ *𝖸𝖾 𝖿𝗂𝗅𝖾 {time_display} 𝗆𝖾 𝖺𝗎𝗍𝗈-𝖽𝖾𝗅𝖾𝗍𝖾 𝗁𝗈 𝗃𝖺𝗒𝖾𝗀𝗂.*"
+            )
+        except Exception as e:
+            return await message.reply_text(f"❌ Error sending file: `{e}`")
+        
+        # 🗑️ 𝗔𝘂𝘁𝗼-𝗗𝗲𝗹𝗲𝘁𝗲 𝗧𝗶𝗺𝗲𝗿 (Background Task)
+        if timer_seconds > 0:
+            asyncio.create_task(delete_user_video(client, message.chat.id, sent_video.id, message.id, timer_seconds))
 
     # -------------------------------------------------------------
     # 2️⃣ 𝗡𝗼𝗿𝗺𝗮𝗹 /𝘀𝘁𝗮𝗿𝘁 𝗠𝗲𝘀𝘀𝗮𝗴𝗲 (𝗪𝗶𝘁𝗵 𝗡𝗲𝘄 𝗨𝗜 & 𝗕𝘂𝘁𝘁𝗼𝗻𝘀)
@@ -94,3 +113,18 @@ async def start_cmd(client, message):
         ])
         
         await message.reply_text(welcome_text, reply_markup=buttons)
+
+# ==================== BACKGROUND TASK ====================
+async def delete_user_video(client, chat_id, video_msg_id, user_msg_id, delay):
+    """Wait karega aur fir file + /start message dono delete kar dega"""
+    await asyncio.sleep(delay)
+    try:
+        # Video aur user ka bheja hua /start link dono ek sath delete honge
+        await client.delete_messages(chat_id=chat_id, message_ids=[video_msg_id, user_msg_id])
+        
+        # Ek alert message bhej kar use bhi 5 second baad delete kar dega
+        alert = await client.send_message(chat_id, "🗑️ **Your video was deleted due to Copyright Policy!**")
+        await asyncio.sleep(5)
+        await alert.delete()
+    except Exception:
+        pass
