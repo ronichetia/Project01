@@ -399,7 +399,7 @@ async def main_callback_handler(client, query: CallbackQuery):
         # ====== ADMIN SUB-MENUS ======
         elif data == "edit_help_video":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
-            ask = await query.message.chat.ask("🎥 **sᴇɴᴅ ᴛʜᴇ ɴᴇᴡ ʜᴇʟᴘ ᴠɪᴅᴇᴏ (ꜰɪʟᴇ ɪᴅ ᴏʀ ʟɪɴᴋ):**\n\n(sᴇɴᴅ `OFF` ᴛᴏ ʀᴇᴍᴏᴠᴇ ᴏʀ `/cancel` ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
+            ask = await query.message.chat.ask("🎥 **sᴇɴᴅ ᴛʜᴇ ɴᴇᴡ ʜᴇʟᴘ ᴠɪᴅᴇᴏ (ꜰɪʟᴇ ɪᴅ ᴏʀ ʟɪɴᴋ):**\n\n(sᴇɴᴅ `OFF` ᴛᴏ ʀᴇᴍᴏᴠᴇ ᴏʀ /cancel ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
             if ask.text and ask.text.lower() == "/cancel": return await ask.reply("🚫 **ᴄᴀɴᴄᴇʟʟᴇᴅ.**")
             
             video_val = ask.video.file_id if ask.video else None if ask.text and ask.text.strip().lower() == "off" else ask.text.strip() if ask.text else None
@@ -411,7 +411,7 @@ async def main_callback_handler(client, query: CallbackQuery):
 
         elif data == "edit_help_text":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
-            ask = await query.message.chat.ask("📝 **sᴇɴᴅ ᴛʜᴇ ɴᴇᴡ ʜᴇʟᴘ ᴛᴇxᴛ:**\n\n(sᴇɴᴅ `OFF` ᴏʀ `default` ᴛᴏ ʀᴇsᴇᴛ, ᴏʀ `/cancel` ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
+            ask = await query.message.chat.ask("📝 **sᴇɴᴅ ᴛʜᴇ ɴᴇᴡ ʜᴇʟᴘ ᴛᴇxᴛ:**\n\n(sᴇɴᴅ `OFF` ᴏʀ `default` ᴛᴏ ʀᴇsᴇᴛ, ᴏʀ /cancel ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
             
             if ask.text:
                 if ask.text.lower() == "/cancel": return await ask.reply("🚫 **ᴄᴀɴᴄᴇʟʟᴇᴅ.**")
@@ -435,7 +435,7 @@ async def main_callback_handler(client, query: CallbackQuery):
 
         elif data == "add_admin":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
-            ask = await query.message.chat.ask("➕ **sᴇɴᴅ ᴛʜᴇ ᴜsᴇʀ ɪᴅ ᴏꜰ ᴛʜᴇ ɴᴇᴡ ᴀᴅᴍɪɴ:**\n\n(sᴇɴᴅ `/cancel` ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
+            ask = await query.message.chat.ask("➕ **sᴇɴᴅ ᴛʜᴇ ᴜsᴇʀ ɪᴅ ᴏꜰ ᴛʜᴇ ɴᴇᴡ ᴀᴅᴍɪɴ:**\n\n(sᴇɴᴅ /cancel ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
             if ask.text.lower() == "/cancel": return await ask.reply("🚫 **ᴄᴀɴᴄᴇʟʟᴇᴅ.**")
             try:
                 new_id = int(ask.text.strip())
@@ -448,7 +448,7 @@ async def main_callback_handler(client, query: CallbackQuery):
 
         elif data == "del_admin":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
-            ask = await query.message.chat.ask("➖ **sᴇɴᴅ ᴛʜᴇ ᴜsᴇʀ ɪᴅ ᴛᴏ ʀᴇᴍᴏᴠᴇ ꜰʀᴏᴍ ᴀᴅᴍɪɴs:**\n\n(sᴇɴᴅ `/cancel` ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
+            ask = await query.message.chat.ask("➖ **sᴇɴᴅ ᴛʜᴇ ᴜsᴇʀ ɪᴅ ᴛᴏ ʀᴇᴍᴏᴠᴇ ꜰʀᴏᴍ ᴀᴅᴍɪɴs:**\n\n(sᴇɴᴅ /cancel ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
             if ask.text.lower() == "/cancel": return await ask.reply("🚫 **ᴄᴀɴᴄᴇʟʟᴇᴅ.**")
             try:
                 del_id = int(ask.text.strip())
@@ -497,7 +497,7 @@ async def main_callback_handler(client, query: CallbackQuery):
 
             try:
                 # STEP 1: CHANNEL ID
-                id_msg = await chat.ask("➕ **Add channel**\n\nSend the channel ID (numeric, e.g. `-1001234567890`).\n\nSend `/cancel` to go back.", timeout=120)
+                id_msg = await chat.ask("➕ **Add channel**\n\nSend the channel ID (numeric, e.g. `-1001234567890`).\n\nSend /cancel to go back.", timeout=120)
                 if id_msg.text.lower() == "/cancel": return await id_msg.reply("🚫 **Cancelled.**")
                 ch_id = int(id_msg.text)
 
@@ -586,7 +586,7 @@ async def main_callback_handler(client, query: CallbackQuery):
 
         elif data == "add_fsub_ch":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
-            ask_id = await query.message.chat.ask("📢 **Send the Channel ID (e.g., -100123456789):**\n\n(Send `/cancel` to abort)", timeout=120)
+            ask_id = await query.message.chat.ask("📢 **Send the Channel ID (e.g., -100123456789):**\n\n(Send /cancel to abort)", timeout=120)
             if ask_id.text.lower() == "/cancel": return await ask_id.reply("🚫 **Cancelled.**")
             ch_id = int(ask_id.text.strip())
 
@@ -677,7 +677,7 @@ async def main_callback_handler(client, query: CallbackQuery):
 
         elif data == "edit_welcome":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
-            ask_msg = await query.message.chat.ask("📝 **sᴇɴᴅ ᴛʜᴇ ɴᴇᴡ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ:**\n\n💡 _You can use {user} in text to mention their name._\n\n(sᴇɴᴅ `/cancel` ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
+            ask_msg = await query.message.chat.ask("📝 **sᴇɴᴅ ᴛʜᴇ ɴᴇᴡ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ:**\n\n💡 _You can use {user} in text to mention their name._\n\n(sᴇɴᴅ /cancel ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
             if ask_msg.text.lower() == "/cancel": return await ask_msg.reply("🚫 **ᴄᴀɴᴄᴇʟʟᴇᴅ.**")
             await db.update_welcome_msg(ask_msg.text)
             await ask_msg.reply("✅ **ɴᴇᴡ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ sᴇᴛ sᴜᴄᴄᴇssꜰᴜʟʟʏ!**")
@@ -700,11 +700,11 @@ async def main_callback_handler(client, query: CallbackQuery):
 
         elif data == "add_post_btn":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
-            ask_name = await query.message.chat.ask("🏷️ **sᴇɴᴅ ᴛʜᴇ ɴᴀᴍᴇ ꜰᴏʀ ᴛʜᴇ ɴᴇᴡ ʙᴜᴛᴛᴏɴ:**\n\n(sᴇɴᴅ `/cancel` ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
+            ask_name = await query.message.chat.ask("🏷️ **sᴇɴᴅ ᴛʜᴇ ɴᴀᴍᴇ ꜰᴏʀ ᴛʜᴇ ɴᴇᴡ ʙᴜᴛᴛᴏɴ:**\n\n(sᴇɴᴅ /cancel ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
             if ask_name.text.lower() == "/cancel": return await ask_name.reply("🚫 **ᴄᴀɴᴄᴇʟʟᴇᴅ.**")
             btn_name = ask_name.text.strip()
             
-            ask_url = await query.message.chat.ask("🔗 **sᴇɴᴅ ᴛʜᴇ ᴜʀʟ/ʟɪɴᴋ ꜰᴏʀ ᴛʜɪs ʙᴜᴛᴛᴏɴ:**\n\n(sᴇɴᴅ `/cancel` ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
+            ask_url = await query.message.chat.ask("🔗 **sᴇɴᴅ ᴛʜᴇ ᴜʀʟ/ʟɪɴᴋ ꜰᴏʀ ᴛʜɪs ʙᴜᴛᴛᴏɴ:**\n\n(sᴇɴᴅ /cancel ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
             if ask_url.text.lower() == "/cancel": return await ask_url.reply("🚫 **ᴄᴀɴᴄᴇʟʟᴇᴅ.**")
             btn_url = ask_url.text.strip()
             
@@ -720,7 +720,7 @@ async def main_callback_handler(client, query: CallbackQuery):
             post_buttons = settings.get("post_buttons", [])
             if not post_buttons: return await query.answer("🚫 ɴᴏ ʙᴜᴛᴛᴏɴs ᴛᴏ ʀᴇᴍᴏᴠᴇ!", show_alert=True)
                 
-            ask_idx = await query.message.chat.ask("🔢 **sᴇɴᴅ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ɴᴜᴍʙᴇʀ ᴛᴏ ʀᴇᴍᴏᴠᴇ (1, 2, 3...):**\n\n(sᴇɴᴅ `/cancel` ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
+            ask_idx = await query.message.chat.ask("🔢 **sᴇɴᴅ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ɴᴜᴍʙᴇʀ ᴛᴏ ʀᴇᴍᴏᴠᴇ (1, 2, 3...):**\n\n(sᴇɴᴅ /cancel ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
             if ask_idx.text.lower() == "/cancel": return await ask_idx.reply("🚫 **ᴄᴀɴᴄᴇʟʟᴇᴅ.**")
             try:
                 idx = int(ask_idx.text.strip()) - 1
@@ -755,7 +755,7 @@ async def main_callback_handler(client, query: CallbackQuery):
         # 👈 NEW CALLBACK HANDLER FOR EDITING F-SUB TEXT
         elif data == "edit_fsub_text":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
-            ask_msg = await query.message.chat.ask("📝 **sᴇɴᴅ ᴛʜᴇ ɴᴇᴡ ꜰ-sᴜʙ (ᴀᴄᴄᴇss ᴅᴇɴɪᴇᴅ) ᴍᴇssᴀɢᴇ:**\n\n(sᴇɴᴅ `default` ᴛᴏ ʀᴇsᴇᴛ, ᴏʀ `/cancel` ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
+            ask_msg = await query.message.chat.ask("📝 **sᴇɴᴅ ᴛʜᴇ ɴᴇᴡ ꜰ-sᴜʙ (ᴀᴄᴄᴇss ᴅᴇɴɪᴇᴅ) ᴍᴇssᴀɢᴇ:**\n\n(sᴇɴᴅ `default` ᴛᴏ ʀᴇsᴇᴛ, ᴏʀ /cancel ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
             
             if ask_msg.text:
                 if ask_msg.text.lower() == "/cancel": 
@@ -794,7 +794,7 @@ async def main_callback_handler(client, query: CallbackQuery):
                 await query.answer("❌ DM Auto-Delete turned OFF!", show_alert=True)
                 await render_autodel_menu(query)
             else:
-                ask = await query.message.chat.ask("⏱️ **Send DM Auto-Delete Time:**\n\n(Examples: `30s`, `5m`, `2h`, `1d`)\n(Send `/cancel` to abort)", timeout=120)
+                ask = await query.message.chat.ask("⏱️ **Send DM Auto-Delete Time:**\n\n(Examples: `30s`, `5m`, `2h`, `1d`)\n(Send /cancel to abort)", timeout=120)
                 if ask.text.lower() == "/cancel": return await ask.reply("🚫 **Cancelled.**")
                 
                 new_val = parse_time(ask.text)
@@ -815,7 +815,7 @@ async def main_callback_handler(client, query: CallbackQuery):
                 await query.answer("❌ Post Auto-Delete turned OFF!", show_alert=True)
                 await render_autodel_menu(query)
             else:
-                ask = await query.message.chat.ask("⏱️ **Send Post Auto-Delete Time:**\n\n(Examples: `30s`, `5m`, `2h`, `1d`)\n(Send `/cancel` to abort)", timeout=120)
+                ask = await query.message.chat.ask("⏱️ **Send Post Auto-Delete Time:**\n\n(Examples: `30s`, `5m`, `2h`, `1d`)\n(Send /cancel to abort)", timeout=120)
                 if ask.text.lower() == "/cancel": return await ask.reply("🚫 **Cancelled.**")
                 
                 new_val = parse_time(ask.text)
