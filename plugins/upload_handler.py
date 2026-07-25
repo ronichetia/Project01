@@ -1,6 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from config import Config, admin_filter # 👈 YAHAN admin_filter IMPORT KIYA HAI
+from config import Config, admin_filter
 from database import db
 import re
 import secrets
@@ -33,13 +33,12 @@ def format_url(url):
     return url
 
 
-# 👇 YAHAN FILTER CHANGE KIYA HAI (admin_filter lagaya hai)
 @Client.on_message((filters.document | filters.video) & admin_filter & filters.private)
 async def handle_video_upload(client, message):
     file_id = message.document.file_id if message.document else message.video.file_id
     caption = message.caption or "No Caption"
     
-    # 🔍 𝗦𝗺𝗮𝗿𝘁 𝗥𝗲𝗴𝗲𝘅 - 𝗘𝗽𝗶𝘀𝗼𝗱𝗲 𝗗𝗲𝘁𝗲𝗰𝘁𝗶𝗼𝗻 (Updated for E09, E.09, Ep09)
+    # 🔍 𝗦𝗺𝗮𝗿𝘁 𝗥𝗲𝗴𝗲𝘅 - 𝗘𝗽𝗶𝘀𝗼𝗱𝗲 𝗗𝗲𝘁𝗲𝗰𝘁𝗶𝗼𝗻
     match = re.search(r"(?i)(?:ep|episode|episodes|e)[\s_.\-]*0*(\d+)", caption)
     if match:
         ep_num = match.group(1)
@@ -70,7 +69,6 @@ async def handle_video_upload(client, message):
 
     buttons = []
     for ch in channels:
-        # ✅ Changed '_' to ':' here to prevent collision with token_urlsafe underscores
         buttons.append([InlineKeyboardButton(ch.get('name', 'Channel'), callback_data=f"post:{file_hash}:{ch['_id']}")])
     
     await message.reply_text(
@@ -82,7 +80,7 @@ async def handle_video_upload(client, message):
     )
 
 
-# 🚀 𝗙𝗮𝘀𝘁 𝗣𝗼𝘀𝘁𝗶𝗻𝗴 (Dynamic Links & Buttons Integrated)
+# 🚀 𝗙𝗮𝘀𝘁 𝗣𝗼𝘀𝘁𝗶𝗻𝗴
 @Client.on_callback_query(filters.regex(r"^post:"))
 async def final_post_to_channel(client, query: CallbackQuery):
     data = query.data.split(":")
@@ -102,12 +100,12 @@ async def final_post_to_channel(client, query: CallbackQuery):
     if not target_channel:
         return await query.message.edit("❌ **Channel Database me nahi mila!**")
 
-    # Values extract karna
-    post_mode = target_channel.get("post_mode", "Link").capitalize()
-    auto_del_str = target_channel.get("auto_delete", "0")
-    poster_id = target_channel.get("poster_id")
+    # 👇 UPDATED: Yahan ab hum Global Settings se Post Mode aur Timer fetch kar rahe hain
+    settings = await db.get_settings()
+    post_mode = settings.get("post_mode", "Link").capitalize()
+    auto_del_str = settings.get("auto_delete", "0")
     
-    # Updated: Getting Description (Genres) and Channel Title
+    poster_id = target_channel.get("poster_id")
     description = target_channel.get("description", "")
     ch_title = target_channel.get("name", "")
     
@@ -117,55 +115,44 @@ async def final_post_to_channel(client, query: CallbackQuery):
     try:
         # 2️⃣ Post Mode ke Hisaab se Action Lena
         if post_mode == "Forward":
-            # Original file ko channel me forward karega
             sent_msg = await client.forward_messages(
                 chat_id=channel_id,
                 from_chat_id=p_data["chat_id"],
                 message_ids=p_data["msg_id"]
             )
-        
         elif post_mode == "Copy":
-            # Original file ko bina forwarded tag ke copy karega
             sent_msg = await client.copy_message(
                 chat_id=channel_id,
                 from_chat_id=p_data["chat_id"],
                 message_id=p_data["msg_id"]
             )
-            
         else: 
-            # Default "Link" Mode (Poster Image + Description + Dynamic Buttons)
-            settings = await db.get_settings()
-            
-            # Main Episode Download Button
+            # Link Mode
             btn_rows = [
                 [InlineKeyboardButton(p_data["btn_name"], url=format_url(p_data["start_link"]))]
             ]
             
-            # 👇 YAHAN DATABASE SE DYNAMIC ADMIN BUTTONS FETCH HONGE
             post_buttons = settings.get("post_buttons", [])
             
             if post_buttons:
                 current_row = []
                 for btn in post_buttons:
                     valid_url = format_url(btn.get("url", ""))
-                    if valid_url:  # Valid URL hone par hi button add hoga
+                    if valid_url:  
                         current_row.append(InlineKeyboardButton(btn["name"], url=valid_url))
                     
-                    if len(current_row) == 2:  # Har row me maximum 2 buttons
+                    if len(current_row) == 2:  
                         btn_rows.append(current_row)
                         current_row = []
                 
-                if current_row: # Agar koi 1 odd button bach jaye
+                if current_row: 
                     btn_rows.append(current_row)
             else:
-                # Agar koi button set nahi hai toh Default Help Button
                 bot_username = (await client.get_me()).username
                 fallback_help = f"https://t.me/{bot_username}"
                 btn_rows.append([InlineKeyboardButton("💬 𝗛𝗲𝗹𝗽", url=fallback_help)])
                 
             keyboard = InlineKeyboardMarkup(btn_rows)
-            
-            # Text Formatting
             post_text = f"**{ch_title}**\n\n" if ch_title else f"**{p_data['caption']}**\n\n"
             
             if description and description.lower() != "skipped":
@@ -191,9 +178,17 @@ async def final_post_to_channel(client, query: CallbackQuery):
     except Exception as e:
         return await query.message.edit(f"❌ **Error While Posting:**\n`{e}`")
 
-    # 3️⃣ Auto Delete Background Task
-    if timer_seconds > 0 and sent_msg:
-        asyncio.create_task(delete_post_later(client, channel_id, sent_msg.id, timer_seconds))
+    # 3️⃣ 👇 UPDATED: Auto Delete Background Task
+    if timer_seconds > 0:
+        # Channel se post delete karega
+        if sent_msg:
+            asyncio.create_task(delete_post_later(client, channel_id, sent_msg.id, timer_seconds))
+            
+        # Admin ke DM se original Video delete karega
+        asyncio.create_task(delete_post_later(client, p_data["chat_id"], p_data["msg_id"], timer_seconds))
+        
+        # Admin ke DM se Bot ka confirmation message (jo post hone ke baad dikhta hai) wo bhi delete karega
+        asyncio.create_task(delete_post_later(client, query.message.chat.id, query.message.id, timer_seconds))
 
 
 # Background Helper Task Timer ke liye
