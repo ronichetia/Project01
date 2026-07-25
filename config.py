@@ -3,12 +3,12 @@ from pyrogram import filters
 
 class Config:
     # 𝗔𝗣𝗜 𝗞𝗲𝘆𝘀
-    API_ID = int(os.environ.get("API_ID", "28733143")) 
-    API_HASH = os.environ.get("API_HASH", "f7bbd29cf8ba336237046dbecfeab519")
-    BOT_TOKEN = os.environ.get("BOT_TOKEN", "8670021313:AAFn9UGLdcF24Z9wtarwvw3f8W1Y3Ppv07U")
+    API_ID = int(os.environ.get("API_ID", "api_id")) 
+    API_HASH = os.environ.get("API_HASH", "api_hash")
+    BOT_TOKEN = os.environ.get("BOT_TOKEN", "add^tokn:")
     
     # 𝗗𝗮𝘁𝗮𝗯𝗮𝘀𝗲 (𝗠𝗼𝗻𝗴𝗼𝗗𝗕)
-    MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://neonman242:neonman242@game0.sqfzcd4.mongodb.net/?appName=game0")
+    MONGO_URI = os.environ.get("MONGO_URI", "yah_bhi_add_karskteho")
     
     # 𝗔𝗱𝗺𝗶𝗻 & 𝗙-𝗦𝘂𝗯
     ADMINS = [int(admin) for admin in os.environ.get("ADMINS", "7680976846").split()] 
