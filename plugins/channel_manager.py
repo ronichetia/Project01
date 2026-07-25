@@ -6,7 +6,7 @@ import asyncio
 import re
 
 # ==================== 1. ADD CHANNEL COMMAND (Step-by-Step) ====================
-@Client.on_message(filters.command("addchannel") & admin_filter) # 👈 YAHAN FILTER CHANGE KIYA HAI
+@Client.on_message(filters.command("addchannel") & admin_filter) # 👈 YAHAN FILTER LAGA HAI
 async def add_channel_step_by_step(client, message):
     chat = message.chat
     
@@ -58,23 +58,9 @@ async def add_channel_step_by_step(client, message):
             # Agar user ne galti se 'Genres: Drama' likha hai to automatically clean kar dega
             desc = re.sub(r"(?i)^genres?:\s*", "", genre_msg.text)
 
-        # STEP 4: POST MODE
-        mode_msg = await chat.ask(
-            "Choose post mode:\n\nType: `Link`, `Forward`, or `Copy`",
-            reply_markup=cancel_btn, timeout=120
-        )
-        if mode_msg.text.lower() == "/cancel": return
-        post_mode = mode_msg.text.capitalize()
+        # 🚫 REMOVED POST MODE & AUTO-DELETE STEPS TO MATCH GLOBAL ADMIN SETTINGS
 
-        # STEP 5: AUTO DELETE TIMER (Dynamic Setup)
-        timer_msg = await chat.ask(
-            "Send auto-delete time:\n\n`30s` = 30 seconds\n`5m` = 5 minutes\n`2h` = 2 hours\n`1d` = 1 day\n`0` = off",
-            reply_markup=cancel_btn, timeout=120
-        )
-        if timer_msg.text.lower() == "/cancel": return
-        auto_del = timer_msg.text.lower()
-
-        # STEP 6: POSTER IMAGE
+        # STEP 4: POSTER IMAGE
         poster_msg = await chat.ask(
             "Send a poster image for this channel, or send `/skip` to skip:",
             reply_markup=cancel_btn, timeout=120
@@ -84,12 +70,10 @@ async def add_channel_step_by_step(client, message):
         if poster_msg.photo:
             poster_id = poster_msg.photo.file_id
 
-        # SAVE FULL DATA TO MONGODB
+        # SAVE FULL DATA TO MONGODB (Excluding mode and timer)
         channel_data = {
             "name": title,
             "description": desc,
-            "post_mode": post_mode,
-            "auto_delete": auto_del,
             "poster_id": poster_id
         }
         await db.add_channel(ch_id, channel_data)
@@ -99,9 +83,8 @@ async def add_channel_step_by_step(client, message):
             "✅ **Channel Added Successfully!**\n\n"
             f"**Title:** {title}\n"
             f"**ID:** `{ch_id}`\n"
-            f"**Genres:** {desc if desc else 'Skipped'}\n"
-            f"**Mode:** {post_mode}\n"
-            f"**Auto-Delete:** {auto_del}\n"
+            f"**Genres:** {desc if desc else 'Skipped'}\n\n"
+            "*(Post Mode and Auto-Delete settings will be applied globally from the Admin Panel)*"
         )
 
         if poster_id:
@@ -122,7 +105,7 @@ async def cancel_flow_handler(client, query):
 
 
 # ==================== 2. DELETE CHANNEL COMMAND ====================
-@Client.on_message(filters.command("delchannel") & admin_filter) # 👈 YAHAN FILTER CHANGE KIYA HAI
+@Client.on_message(filters.command("delchannel") & admin_filter) # 👈 YAHAN FILTER LAGA HAI
 async def del_channel(client, message):
     try:
         # Command se ID extract karega (e.g., /delchannel -100123456789)
@@ -135,4 +118,3 @@ async def del_channel(client, message):
         await message.reply_text("❌ **Invalid ID!**\nChannel ID numbers mein honi chahiye.")
     except Exception as e:
         await message.reply_text(f"❌ **Error:** `{e}`")
-        
