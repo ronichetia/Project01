@@ -1,4 +1,4 @@
-from pyrogram import Client, filters
+from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.errors import MessageNotModified
 from config import Config
@@ -7,16 +7,21 @@ import asyncio
 import pyromod # Used for asking user input dynamically
 
 # ==================== HELPER FUNCTIONS ====================
-# Start Menu Generator
-def get_start_menu(user_name, is_admin):
-    text = (
-        f"> 👋 **ʜᴇʏ {user_name}! ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ ʙᴏᴛ**\n\n"
-        "ɪ ᴡɪʟʟ ʜᴇʟᴘ ʏᴏᴜ ᴘʀᴏᴠɪᴅᴇ ᴀɴɪᴍᴇ ᴠɪᴅᴇᴏs ᴀɴᴅ ʟɪɴᴋs.\n"
-        "ᴇxᴘʟᴏʀᴇ ᴜsɪɴɢ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ:"
-    )
+# Start Menu Generator 
+async def get_start_menu(user_name, is_admin):
+    settings = await db.get_settings()
+    custom_msg = settings.get("welcome_msg", "default")
+    
+    if custom_msg == "default" or not custom_msg:
+        text = (
+            f"> 👋 **ʜᴇʏ {user_name}! ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ ʙᴏᴛ**\n\n"
+            "ɪ ᴡɪʟʟ ʜᴇʟᴘ ʏᴏᴜ ᴘʀᴏᴠɪᴅᴇ ᴀɴɪᴍᴇ ᴠɪᴅᴇᴏs ᴀɴᴅ ʟɪɴᴋs.\n"
+            "ᴇxᴘʟᴏʀᴇ ᴜsɪɴɢ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ:"
+        )
+    else:
+        text = custom_msg.replace("{user}", user_name)
     
     buttons = []
-    # Admin button sirf admins ko dikhega
     if is_admin:
         buttons.append([InlineKeyboardButton("👮 ᴀᴅᴍɪɴ ᴘᴀɴᴇʟ 👮", callback_data="open_admin")])
         
@@ -56,14 +61,16 @@ async def get_admin_menu():
     btn_list = [
         [InlineKeyboardButton("📊 ʙᴏᴛ sᴛᴀᴛs", callback_data="admin_stats"),
          InlineKeyboardButton("📢 ʙʀᴏᴀᴅᴄᴀsᴛ", callback_data="admin_broadcast")],
-        [InlineKeyboardButton("📺 ᴍᴀɴᴀɢᴇ ᴄʜᴀɴɴᴇʟs", callback_data="admin_channels"),
+        # Updated Button to Manage F-Sub Channels and Bots 
+        [InlineKeyboardButton("📺 ᴍᴀɴᴀɢᴇ ʀᴇǫᴜɪʀᴇᴍᴇɴᴛs", callback_data="manage_reqs"),
          InlineKeyboardButton("⚙️ ꜰ-sᴜʙ / ᴀᴜᴛᴏ-ᴅᴇʟ", callback_data="admin_toggles")],
         [InlineKeyboardButton("📝 ᴡᴇʟᴄᴏᴍᴇ ᴍsɢ", callback_data="admin_welcome"),
          InlineKeyboardButton("🔗 ᴘᴏsᴛ ʙᴜᴛᴛᴏɴs", callback_data="admin_post_btns")],
         [InlineKeyboardButton("👥 ᴍᴀɴᴀɢᴇ ᴀᴅᴍɪɴs", callback_data="admin_manage"),
          InlineKeyboardButton("🎥 ʜᴇʟᴘ ᴠɪᴅᴇᴏ", callback_data="edit_help_video")],
-        [InlineKeyboardButton("🔙 ʙᴀᴄᴋ", callback_data="back_start"),
-         InlineKeyboardButton("❌ ᴄʟᴏsᴇ", callback_data="close_panel")]
+        [InlineKeyboardButton("📝 ʜᴇʟᴘ ᴛᴇxᴛ", callback_data="edit_help_text"),
+         InlineKeyboardButton("🔙 ʙᴀᴄᴋ", callback_data="back_start")],
+        [InlineKeyboardButton("❌ ᴄʟᴏsᴇ", callback_data="close_panel")]
     ]
     return text, InlineKeyboardMarkup(btn_list)
 
@@ -74,8 +81,61 @@ async def start_cmd(client, message):
     if hasattr(db, "add_user"):
         await db.add_user(message.from_user.id)
 
+    is_admin = message.from_user.id in Config.ADMINS
+
+    # ====== NEW F-SUB VERIFICATION SYSTEM ======
+    settings = await db.get_settings()
+    fsub_on = settings.get("fsub", False)
+    fsub_channels = settings.get("fsub_channels", [])
+    fsub_bots = settings.get("fsub_bots", [])
+    
+    # Check if user needs to be verified (Bypass Admins)
+    if fsub_on and (fsub_channels or fsub_bots) and not is_admin:
+        is_joined = True
+        
+        # Verify Channels Only
+        for ch in fsub_channels:
+            try:
+                member = await client.get_chat_member(ch["id"], message.from_user.id)
+                if member.status in [enums.ChatMemberStatus.LEFT, enums.ChatMemberStatus.BANNED]:
+                    is_joined = False
+                    break
+            except Exception:
+                # If bot isn't admin or user hasn't joined, it triggers Exception
+                is_joined = False
+                break
+                
+        # If not joined, show required buttons
+        if not is_joined:
+            btn_list = []
+            
+            # Add Channel Buttons
+            for ch in fsub_channels:
+                btn_list.append([InlineKeyboardButton(f"📢 Join {ch['name']}", url=ch['url'])])
+                
+            # Add Bot Buttons (No verification required, directly appended)
+            for bt in fsub_bots:
+                btn_list.append([InlineKeyboardButton(f"🤖 Start {bt['name']}", url=bt['url'])])
+
+            # Retry Mechanism for Deep Linking support
+            bot_username = (await client.get_me()).username
+            if len(message.command) > 1:
+                retry_url = f"https://t.me/{bot_username}?start={message.command[1]}"
+                btn_list.append([InlineKeyboardButton("🔄 Try Again", url=retry_url)])
+            else:
+                btn_list.append([InlineKeyboardButton("🔄 Try Again", url=f"https://t.me/{bot_username}?start=true")])
+
+            await message.reply_text(
+                "⚠️ **Access Denied!**\n\n"
+                "You must join our official channels and start our backup bots to use this bot.\n"
+                "Please complete the requirements below and click **Try Again**.",
+                reply_markup=InlineKeyboardMarkup(btn_list)
+            )
+            return
+    # ===========================================
+
     # DEEP LINKING LOGIC
-    if len(message.command) > 1:
+    if len(message.command) > 1 and message.command[1] != "true":
         file_hash = message.command[1]
         file_data = await db.get_file(file_hash)
         
@@ -97,9 +157,8 @@ async def start_cmd(client, message):
             await message.reply_text("❌ **ꜰɪʟᴇ ɴᴏᴛ ꜰᴏᴜɴᴅ ᴏʀ ᴇxᴘɪʀᴇᴅ!**")
             return
 
-    # NORMAL START MENU
-    is_admin = message.from_user.id in Config.ADMINS
-    text, buttons = get_start_menu(message.from_user.first_name, is_admin)
+    # NORMAL START MENU 
+    text, buttons = await get_start_menu(message.from_user.first_name, is_admin)
     await message.reply_text(text, reply_markup=buttons)
 
 
@@ -139,8 +198,7 @@ async def del_admin_cmd(client, message):
     except ValueError:
         await message.reply_text("❌ **ɪɴᴠᴀʟɪᴅ ɪᴅ!** ᴏɴʟʏ ɴᴜᴍʙᴇʀs ᴀʟʟᴏᴡᴇᴅ.")
 
-
-# Helper function: Toggles Menu (Dynamic Buttons)
+# Helper function: Toggles Menu 
 async def render_toggles_menu(query):
     settings = await db.get_settings()
     fsub_on = settings.get("fsub", False)
@@ -148,11 +206,10 @@ async def render_toggles_menu(query):
 
     fsub_text = "✅ ꜰ-sᴜʙ: ᴏɴ" if fsub_on else "❌ ꜰ-sᴜʙ: ᴏꜰꜰ"
     
-    if autodel == 600: del_text = "⏱️ ᴀᴜᴛᴏ-ᴅᴇʟ: 10ᴍ"
-    elif autodel == 3600: del_text = "⏱️ ᴀᴜᴛᴏ-ᴅᴇʟ: 1ʜ"
-    elif autodel == 86400: del_text = "⏱️ ᴀᴜᴛᴏ-ᴅᴇʟ: 1ᴅ"
-    elif autodel == 0: del_text = "⏱️ ᴀᴜᴛᴏ-ᴅᴇʟ: ᴏꜰꜰ"
-    else: del_text = f"⏱️ ᴀᴜᴛᴏ-ᴅᴇʟ: {autodel}s"
+    if autodel > 0: 
+        del_text = f"✅ ᴀᴜᴛᴏ-ᴅᴇʟ: ᴏɴ ({autodel}s)"
+    else: 
+        del_text = "❌ ᴀᴜᴛᴏ-ᴅᴇʟ: ᴏꜰꜰ"
 
     text = "> ⚙️ **ʙᴏᴛ ᴄᴏɴᴛʀᴏʟ sᴇᴛᴛɪɴɢs**\n\nᴛᴏɢɢʟᴇ ꜰᴏʀᴄᴇ-sᴜʙ ᴀɴᴅ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇ sᴇᴛᴛɪɴɢs ꜰʀᴏᴍ ʜᴇʀᴇ:"
     buttons = InlineKeyboardMarkup([
@@ -168,7 +225,8 @@ async def render_toggles_menu(query):
 
 
 # ==================== 3. ALL CALLBACK HANDLERS ====================
-@Client.on_callback_query(filters.regex(r"^(close_panel|open_admin|user_about|user_help|back_start|admin_|edit_|reset_|toggle_|add_|del_|clear_)"))
+# Note: Added 'manage_' to the Regex list so the new buttons are successfully caught.
+@Client.on_callback_query(filters.regex(r"^(close_panel|open_admin|user_about|user_help|back_start|admin_|edit_|reset_|toggle_|add_|del_|clear_|manage_)"))
 async def main_callback_handler(client, query: CallbackQuery):
     data = query.data
     user_id = query.from_user.id
@@ -196,7 +254,7 @@ async def main_callback_handler(client, query: CallbackQuery):
                 await query.message.edit_text(text, reply_markup=buttons, disable_web_page_preview=True)
 
         elif data == "back_start":
-            text, buttons = get_start_menu(query.from_user.first_name, is_admin)
+            text, buttons = await get_start_menu(query.from_user.first_name, is_admin)
             
             if query.message.video or query.message.photo or query.message.document:
                 await query.message.delete()
@@ -205,20 +263,23 @@ async def main_callback_handler(client, query: CallbackQuery):
                 await query.message.edit_text(text, reply_markup=buttons)
 
         elif data == "user_help":
-            text = (
-                "> ❓ **𝗛𝗲𝗹𝗽 & 𝗜𝗻𝘀𝘁𝗿𝘂𝗰𝘁𝗶𝗼𝗻𝘀**\n\n"
-                "• **𝖥𝗂𝗅𝖾𝗌 / 𝖠𝗇𝗂𝗆𝖾 𝖪𝖺𝗂𝗌𝖾 𝖣𝗁𝗎𝗇𝖽𝗁𝖾𝗂𝗇?**\n"
-                "  Channel me diye gaye episode button par click karein aur bot me `/start` dabayein.\n\n"
-                "• **𝖥𝗈𝗋𝖼𝖾 𝖲𝗎𝖻𝗌𝖼𝗋𝗂𝗉𝗍𝗂𝗈𝗇:**\n"
-                "  Files download karne se pehle official channel join karna zaroori hai."
-            )
+            settings = await db.get_settings()
+            custom_help_text = settings.get("help_text", None)
+            
+            if custom_help_text and custom_help_text.lower() != "default":
+                text = custom_help_text
+            else:
+                text = (
+                    "> ❓ **𝗛𝗲𝗹𝗽 & 𝗜𝗻𝘀𝘁𝗿𝘂𝗰𝘁𝗶𝗼𝗻𝘀**\n\n"
+                    "• **𝖥𝗂𝗅𝖾𝗌 / 𝖠𝗇𝗂𝗆𝖾 𝖪𝖺𝗂𝗌𝖾 𝖣𝗁𝗎𝗇𝖽𝗁𝖾𝗂𝗇?**\n"
+                    "  Channel me diye gaye episode button par click karein aur bot me `/start` dabayein.\n\n"
+                    "• **𝖥𝗈𝗋𝖼𝖾 𝖲𝗎𝖻𝗌𝖼𝗋𝗂𝗉𝗍𝗂𝗈𝗇:**\n"
+                    "  Files download karne se pehle official channel join karna zaroori hai."
+                )
             
             buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 ʙᴀᴄᴋ", callback_data="back_start")]])
             
-            # DB se help video fetch karega
-            settings = await db.get_settings()
             help_video = settings.get("help_video", None)
-            
             if help_video:
                 try:
                     await query.message.delete()
@@ -229,7 +290,6 @@ async def main_callback_handler(client, query: CallbackQuery):
                         reply_markup=buttons
                     )
                 except:
-                    # Agar video link ya ID invalid ho toh text bhej dega
                     await client.send_message(query.message.chat.id, text, reply_markup=buttons)
             else:
                 if query.message.video or query.message.photo or query.message.document:
@@ -262,6 +322,27 @@ async def main_callback_handler(client, query: CallbackQuery):
                 await ask.reply("✅ **ʜᴇʟᴘ ᴠɪᴅᴇᴏ ᴜᴘᴅᴀᴛᴇᴅ sᴜᴄᴄᴇssꜰᴜʟʟʏ!**")
             else:
                 await ask.reply("🗑️ **ʜᴇʟᴘ ᴠɪᴅᴇᴏ ʀᴇᴍᴏᴠᴇᴅ!**")
+
+        elif data == "edit_help_text":
+            if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
+            ask = await query.message.chat.ask(
+                "📝 **sᴇɴᴅ ᴛʜᴇ ɴᴇᴡ ʜᴇʟᴘ ᴛᴇxᴛ:**\n\n"
+                "(sᴇɴᴅ `OFF` ᴏʀ `default` ᴛᴏ ʀᴇsᴇᴛ, ᴏʀ `/cancel` ᴛᴏ ᴀʙᴏʀᴛ)\n\n"
+                "💡 *ʏᴏᴜ ᴄᴀɴ ᴜsᴇ ᴍᴀʀᴋᴅᴏᴡɴ ʟɪᴋᴇ **ʙᴏʟᴅ**, __ɪᴛᴀʟɪᴄ__, `ᴄᴏᴅᴇ`*", 
+                timeout=120
+            )
+            
+            if ask.text:
+                if ask.text.lower() == "/cancel":
+                    return await ask.reply("🚫 **ᴄᴀɴᴄᴇʟʟᴇᴅ.**")
+                elif ask.text.lower() in ["off", "default"]:
+                    await db.update_setting("help_text", None)
+                    return await ask.reply("✅ **ʜᴇʟᴘ ᴛᴇxᴛ ʀᴇsᴇᴛ ᴛᴏ ᴅᴇꜰᴀᴜʟᴛ!**")
+                else:
+                    await db.update_setting("help_text", ask.text)
+                    await ask.reply("✅ **ʜᴇʟᴘ ᴛᴇxᴛ ᴜᴘᴅᴀᴛᴇᴅ sᴜᴄᴄᴇssꜰᴜʟʟʏ!**\n\nᴜsᴇ /admin ᴛᴏ ᴄʜᴇᴄᴋ.")
+            else:
+                await ask.reply("❌ **ɪɴᴠᴀʟɪᴅ ɪɴᴘᴜᴛ! sɪʀꜰ ᴛᴇxᴛ ᴀʟʟᴏᴡᴇᴅ ʜᴀɪ.**")
 
         elif data == "admin_manage":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
@@ -309,19 +390,123 @@ async def main_callback_handler(client, query: CallbackQuery):
             except ValueError:
                 await ask.reply("❌ **ɪɴᴠᴀʟɪᴅ ɪᴅ! ᴏɴʟʏ ɴᴜᴍʙᴇʀs ᴀʟʟᴏᴡᴇᴅ.**")
 
-
-        elif data == "admin_channels":
+        # ==============================================================
+        # NEW: UNIFIED REQUIREMENTS MANAGER (CHANNELS & BOTS F-SUB)
+        # ==============================================================
+        elif data == "manage_reqs":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
+            settings = await db.get_settings()
+            
+            fsub_channels = settings.get("fsub_channels", [])
+            fsub_bots = settings.get("fsub_bots", [])
+            
             text = (
-                "> 📺 **ᴄʜᴀɴɴᴇʟ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ**\n\n"
-                "ᴄᴏᴍᴍᴀɴᴅ ᴛᴏ ᴀᴅᴅ ᴀ ɴᴇᴡ ᴄʜᴀɴɴᴇʟ:\n"
-                "`/addchannel`\n\n"
-                "ᴄᴏᴍᴍᴀɴᴅ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴀ ᴄʜᴀɴɴᴇʟ:\n"
-                "`/delchannel [Channel ID]`\n\n"
-                "💡 *ᴛɪᴘ:* ɪꜰ ʏᴏᴜ ɢᴇᴛ ᴀ ᴘᴇᴇʀɪᴅ ᴇʀʀᴏʀ, ꜰᴏʀᴡᴀʀᴅ ᴀɴʏ ᴍᴇssᴀɢᴇ ꜰʀᴏᴍ ᴛʜᴇ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴛʜᴇ ʙᴏᴛ."
+                "<b>MANAGE REQUIREMENTS</b>\n\n"
+                "<i>Your configured channels and bot requirements are shown below.</i>\n\n"
+                "» Tap <b>REMOVE</b> beside an item to delete it."
             )
-            buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 ʙᴀᴄᴋ", callback_data="open_admin")]])
-            await query.message.edit_text(text, reply_markup=buttons)
+            
+            buttons = []
+            
+            # Dynamically List All F-Sub Channels
+            for i, ch in enumerate(fsub_channels):
+                buttons.append([
+                    InlineKeyboardButton(f"{ch['name']} (fsub)", url=ch['url']),
+                    InlineKeyboardButton("❌ REMOVE", callback_data=f"del_fch_{i}")
+                ])
+                
+            # Dynamically List All F-Sub Bots
+            for i, bt in enumerate(fsub_bots):
+                buttons.append([
+                    InlineKeyboardButton(f"🤖 {bt['name']} (bot fsub)", url=bt['url']),
+                    InlineKeyboardButton("❌ REMOVE", callback_data=f"del_fbt_{i}")
+                ])
+                
+            # Add Options (Add Bot & Channel side-by-side)
+            buttons.append([
+                InlineKeyboardButton("➕ ADD CHANNEL", callback_data="add_fsub_ch"), 
+                InlineKeyboardButton("➕ ADD BOT", callback_data="add_fsub_bot")
+            ])
+            buttons.append([InlineKeyboardButton("🔙 BACK", callback_data="open_admin")])
+            
+            await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons), parse_mode=enums.ParseMode.HTML)
+
+        # ADD CHANNEL TO REQUIREMENTS
+        elif data == "add_fsub_ch":
+            if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
+            
+            ask_id = await query.message.chat.ask("📢 **Send the Channel ID (e.g., -100123456789):**\n\nMake sure the bot is an Admin in this channel!\n(Send `/cancel` to abort)", timeout=120)
+            if ask_id.text.lower() == "/cancel": return await ask_id.reply("🚫 **Cancelled.**")
+            try:
+                ch_id = int(ask_id.text.strip())
+            except ValueError:
+                return await ask_id.reply("❌ **Invalid ID. Must be a number.**")
+
+            ask_name = await query.message.chat.ask("🏷️ **Send the Button Name for this Channel (e.g., Main Channel):**\n\n(Send `/cancel` to abort)", timeout=120)
+            if ask_name.text.lower() == "/cancel": return await ask_name.reply("🚫 **Cancelled.**")
+            ch_name = ask_name.text.strip()
+
+            ask_url = await query.message.chat.ask("🔗 **Send the Invite Link / URL for this Channel:**\n\n(Send `/cancel` to abort)", timeout=120)
+            if ask_url.text.lower() == "/cancel": return await ask_url.reply("🚫 **Cancelled.**")
+            ch_url = ask_url.text.strip()
+
+            settings = await db.get_settings()
+            fsub_channels = settings.get("fsub_channels", [])
+            fsub_channels.append({"id": ch_id, "name": ch_name, "url": ch_url})
+            await db.update_setting("fsub_channels", fsub_channels)
+            
+            await ask_url.reply("✅ **Channel added successfully to F-Sub Requirements!**")
+
+        # ADD BOT TO REQUIREMENTS
+        elif data == "add_fsub_bot":
+            if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
+            
+            ask_name = await query.message.chat.ask("🤖 **Send the Button Name for the Bot (e.g., Backup Bot):**\n\n(Send `/cancel` to abort)", timeout=120)
+            if ask_name.text.lower() == "/cancel": return await ask_name.reply("🚫 **Cancelled.**")
+            bot_name = ask_name.text.strip()
+
+            ask_url = await query.message.chat.ask("🔗 **Send the Start Link / URL for this Bot:**\n\n(Send `/cancel` to abort)", timeout=120)
+            if ask_url.text.lower() == "/cancel": return await ask_url.reply("🚫 **Cancelled.**")
+            bot_url = ask_url.text.strip()
+
+            settings = await db.get_settings()
+            fsub_bots = settings.get("fsub_bots", [])
+            fsub_bots.append({"name": bot_name, "url": bot_url})
+            await db.update_setting("fsub_bots", fsub_bots)
+            
+            await ask_url.reply("✅ **Bot added successfully to F-Sub Requirements!**")
+
+        # DELETE CHANNEL REQUIREMENT
+        elif data.startswith("del_fch_"):
+            if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
+            idx = int(data.split("_")[2])
+            settings = await db.get_settings()
+            fsub_channels = settings.get("fsub_channels", [])
+            
+            if 0 <= idx < len(fsub_channels):
+                fsub_channels.pop(idx)
+                await db.update_setting("fsub_channels", fsub_channels)
+                await query.answer("✅ Channel Requirement Removed!", show_alert=True)
+                # Refresh Menu
+                query.data = "manage_reqs"
+                await main_callback_handler(client, query)
+
+        # DELETE BOT REQUIREMENT
+        elif data.startswith("del_fbt_"):
+            if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
+            idx = int(data.split("_")[2])
+            settings = await db.get_settings()
+            fsub_bots = settings.get("fsub_bots", [])
+            
+            if 0 <= idx < len(fsub_bots):
+                fsub_bots.pop(idx)
+                await db.update_setting("fsub_bots", fsub_bots)
+                await query.answer("✅ Bot Requirement Removed!", show_alert=True)
+                # Refresh Menu
+                query.data = "manage_reqs"
+                await main_callback_handler(client, query)
+        # ==============================================================
+
 
         elif data == "admin_broadcast":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
@@ -366,14 +551,13 @@ async def main_callback_handler(client, query: CallbackQuery):
 
         elif data == "edit_welcome":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
-            ask_msg = await query.message.chat.ask("📝 **sᴇɴᴅ ᴛʜᴇ ɴᴇᴡ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ:**\n\n(sᴇɴᴅ `/cancel` ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
+            ask_msg = await query.message.chat.ask("📝 **sᴇɴᴅ ᴛʜᴇ ɴᴇᴡ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ:**\n\n💡 _You can use {user} in text to mention their name._\n\n(sᴇɴᴅ `/cancel` ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
             if ask_msg.text.lower() == "/cancel":
                 return await ask_msg.reply("🚫 **ᴄᴀɴᴄᴇʟʟᴇᴅ.**")
                 
             await db.update_welcome_msg(ask_msg.text)
             await ask_msg.reply("✅ **ɴᴇᴡ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ sᴇᴛ sᴜᴄᴄᴇssꜰᴜʟʟʏ!**\nᴜsᴇ /admin ᴛᴏ ᴄʜᴇᴄᴋ ᴀɢᴀɪɴ.")
 
-        # ================= NEW DYNAMIC BUTTONS LOGIC =================
         elif data == "admin_post_btns":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
             settings = await db.get_settings()
@@ -463,14 +647,25 @@ async def main_callback_handler(client, query: CallbackQuery):
             settings = await db.get_settings()
             curr = settings.get("auto_delete", 600)
             
-            if curr == 600: new_val = 3600
-            elif curr == 3600: new_val = 86400
-            elif curr == 86400: new_val = 0
-            else: new_val = 600
-            
-            await db.set_auto_delete(new_val)
-            await query.answer("ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇ ᴛɪᴍᴇʀ ᴜᴘᴅᴀᴛᴇᴅ!", show_alert=False)
-            await render_toggles_menu(query)
+            if curr > 0:
+                await db.set_auto_delete(0)
+                await query.answer("❌ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇ ᴛᴜʀɴᴇᴅ ᴏꜰꜰ!", show_alert=True)
+                await render_toggles_menu(query)
+            else:
+                ask = await query.message.chat.ask("⏱️ **sᴇɴᴅ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇ ᴛɪᴍᴇ ɪɴ sᴇᴄᴏɴᴅs:**\n\n(ᴇxᴀᴍᴘʟᴇ: `600` ꜰᴏʀ 10 ᴍɪɴs)\n(sᴇɴᴅ `/cancel` ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
+                if ask.text.lower() == "/cancel":
+                    return await ask.reply("🚫 **ᴄᴀɴᴄᴇʟʟᴇᴅ.**")
+                
+                try:
+                    new_val = int(ask.text.strip())
+                    if new_val <= 0:
+                        return await ask.reply("❌ **Time must be greater than 0 seconds.**")
+                    
+                    await db.set_auto_delete(new_val)
+                    await ask.reply(f"✅ **ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇ ᴛᴜʀɴᴇᴅ ᴏɴ ꜰᴏʀ {new_val} sᴇᴄᴏɴᴅs!**\n\nᴜsᴇ /admin ᴛᴏ ᴄʜᴇᴄᴋ.")
+                    await render_toggles_menu(query)
+                except ValueError:
+                    await ask.reply("❌ **ɪɴᴠᴀʟɪᴅ ɴᴜᴍʙᴇʀ. ᴘʟᴇᴀsᴇ sᴇɴᴅ ᴏɴʟʏ ᴅɪɢɪᴛs (ᴇ.ɢ. 600).**")
 
     except MessageNotModified:
         await query.answer()
