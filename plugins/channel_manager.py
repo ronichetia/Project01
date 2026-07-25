@@ -19,7 +19,7 @@ async def add_channel_step_by_step(client, message):
     try:
         # STEP 1: CHANNEL ID
         id_msg = await chat.ask(
-            "✨ **Add a New Channel**\n\nPlease send the **Channel ID** (must be numeric, e.g., `-1001234567890`).\n\nSend `/cancel` to abort the process.",
+            "✨ **Add a New Channel**\n\nPlease send the **Channel ID** (must be numeric, e.g., `-1001234567890`).\n\nSend /cancel to abort the process.",
             timeout=120
         )
         if id_msg.text.lower() == "/cancel":
