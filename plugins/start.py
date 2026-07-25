@@ -77,12 +77,14 @@ async def get_admin_menu():
     btn_list = [
         [InlineKeyboardButton("📊 ʙᴏᴛ sᴛᴀᴛs", callback_data="admin_stats"),
          InlineKeyboardButton("📢 ʙʀᴏᴀᴅᴄᴀsᴛ", callback_data="admin_broadcast")],
-        [InlineKeyboardButton("📺 ᴍᴀɴᴀɢᴇ ꜰ-sᴜʙ", callback_data="manage_fsub")], # Changed
+        # Updated Row: manage_fsub aur manage_channels ek sath hain
+        [InlineKeyboardButton("📺 ᴍᴀɴᴀɢᴇ ꜰ-sᴜʙ", callback_data="manage_fsub"),
+         InlineKeyboardButton("📁 ᴍᴀɴᴀɢᴇ ᴄʜᴀɴɴᴇʟs", callback_data="manage_channels")],
         [InlineKeyboardButton("⚙️ ꜰ-sᴜʙ sᴇᴛᴛɪɴɢs", callback_data="admin_fsub"),
          InlineKeyboardButton("⏳ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇ", callback_data="admin_autodel")],
         [InlineKeyboardButton("📝 ᴡᴇʟᴄᴏᴍᴇ ᴍsɢ", callback_data="admin_welcome"),
          InlineKeyboardButton("🔗 ᴘᴏsᴛ ʙᴜᴛᴛᴏɴs", callback_data="admin_post_btns")],
-        [InlineKeyboardButton("📮 ᴘᴏsᴛ ᴍᴏᴅᴇ", callback_data="admin_post_mode")], # New Add
+        [InlineKeyboardButton("📮 ᴘᴏsᴛ ᴍᴏᴅᴇ", callback_data="admin_post_mode")], 
         [InlineKeyboardButton("👥 ᴍᴀɴᴀɢᴇ ᴀᴅᴍɪɴs", callback_data="admin_manage"),
          InlineKeyboardButton("🎥 ʜᴇʟᴘ ᴠɪᴅᴇᴏ", callback_data="edit_help_video")],
         [InlineKeyboardButton("📝 ʜᴇʟᴘ ᴛᴇxᴛ", callback_data="edit_help_text"),
@@ -229,7 +231,7 @@ async def start_cmd(client, message):
     await message.reply_text(text, reply_markup=buttons)
 
 
-# ==================== 2. ADMIN & CHANNEL COMMANDS ====================
+# ==================== 2. ADMIN COMMANDS ====================
 @Client.on_message(filters.command("admin") & filters.user(Config.ADMINS))
 async def admin_cmd(client, message):
     text, buttons = await get_admin_menu()
@@ -264,81 +266,6 @@ async def del_admin_cmd(client, message):
         await message.reply_text("❌ **ɪɴᴠᴀʟɪᴅ ꜰᴏʀᴍᴀᴛ!**\nᴜsᴇ: `/deladmin UserID`")
     except ValueError:
         await message.reply_text("❌ **ɪɴᴠᴀʟɪᴅ ɪᴅ!** ᴏɴʟʏ ɴᴜᴍʙᴇʀs ᴀʟʟᴏᴡᴇᴅ.")
-
-# --- NEW: ADD/DEL CHANNEL COMMANDS ---
-@Client.on_message(filters.command("addchannel") & filters.user(Config.ADMINS))
-async def add_channel_step_by_step(client, message):
-    chat = message.chat
-    cancel_btn = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔙 BACK", callback_data="cancel_flow"),
-         InlineKeyboardButton("❌ CLOSE", callback_data="cancel_flow")]
-    ])
-
-    try:
-        # STEP 1: CHANNEL ID
-        id_msg = await chat.ask("➕ **Add channel**\n\nSend the channel ID (numeric, e.g. `-1001234567890`).\n\nSend `/cancel` to go back.", timeout=120)
-        if id_msg.text.lower() == "/cancel": return await message.reply("🚫 **Cancelled.**")
-        ch_id = int(id_msg.text)
-
-        # VERIFICATION
-        try:
-            verify_chat = await client.get_chat(ch_id)
-        except Exception as e:
-            return await message.reply(f"❌ **Error:** `Peer id invalid`\n\n⚠️ **Main is channel ko access nahi kar pa raha hu!**\nKripya pehle mujhe is channel (`{ch_id}`) mein **Admin** banayein.\n\n**Error:** `{e}`")
-
-        # STEP 2: TITLE
-        fetched_title = verify_chat.title if verify_chat else "Unknown"
-        title_msg = await chat.ask(f"Send the title for this channel (e.g. \"One Piece\"):\n\n**Fetched Title:** `{fetched_title}`", reply_markup=cancel_btn, timeout=120)
-        if title_msg.text.lower() == "/cancel": return
-        title = title_msg.text
-
-        # STEP 3: GENRES
-        genre_msg = await chat.ask("Send **Genres** for this channel (e.g., Romance, Drama) or send `/skip`:", reply_markup=cancel_btn, timeout=120)
-        if genre_msg.text.lower() == "/cancel": return
-        desc = "" if genre_msg.text.lower() == "/skip" else re.sub(r"(?i)^genres?:\s*", "", genre_msg.text)
-
-        # STEP 4: POSTER IMAGE
-        poster_msg = await chat.ask("Send a poster image for this channel, or send `/skip` to skip:", reply_markup=cancel_btn, timeout=120)
-        poster_id = poster_msg.photo.file_id if poster_msg.photo else None
-
-        # SAVE TO DB (Post Mode aur Auto Del ab global setting se aayega)
-        channel_data = {
-            "name": title,
-            "description": desc,
-            "poster_id": poster_id
-        }
-        await db.add_channel(ch_id, channel_data)
-
-        # SUCCESS MSG
-        success_text = (
-            "✅ **Channel Added Successfully!**\n\n"
-            f"**Title:** {title}\n"
-            f"**ID:** `{ch_id}`\n"
-            f"**Genres:** {desc if desc else 'Skipped'}\n"
-            "*(Post Mode and Auto-Delete settings will be applied globally from the Admin Panel)*"
-        )
-        if poster_id:
-            await message.reply_photo(photo=poster_id, caption=success_text)
-        else:
-            await message.reply_text(success_text)
-
-    except asyncio.TimeoutError:
-        await message.reply("⏰ **Time is up! Process reset. Try again.**")
-    except ValueError:
-        await message.reply("❌ **Invalid ID provided!**")
-
-@Client.on_message(filters.command("delchannel") & filters.user(Config.ADMINS))
-async def del_channel(client, message):
-    try:
-        ch_id = int(message.text.split(" ")[1])
-        await db.remove_channel(ch_id)
-        await message.reply_text(f"> 🗑️ **𝗖𝗵𝗮𝗻𝗻𝗲𝗹 𝗥𝗲𝗺𝗼𝘃𝗲𝗱 𝗦𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆:** `{ch_id}`")
-    except IndexError:
-        await message.reply_text("❌ **𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗙𝗼𝗿𝗺𝗮𝘁!**\n𝖴𝗌𝖾: `/delchannel -100123456789`")
-    except ValueError:
-        await message.reply_text("❌ **Invalid ID!**\nChannel ID numbers mein honi chahiye.")
-    except Exception as e:
-        await message.reply_text(f"❌ **Error:** `{e}`")
 
 
 # ==================== 3. ALL CALLBACK HANDLERS ====================
@@ -475,6 +402,111 @@ async def main_callback_handler(client, query: CallbackQuery):
                     await ask.reply(f"🗑️ **ᴜsᴇʀ `{del_id}` ʜᴀs ʙᴇᴇɴ ʀᴇᴍᴏᴠᴇᴅ ꜰʀᴏᴍ ᴀᴅᴍɪɴs!**")
                 else: await ask.reply("⚠️ **ᴛʜɪs ᴜsᴇʀ ɪs ɴᴏᴛ ɪɴ ᴛʜᴇ ᴀᴅᴍɪɴ ʟɪsᴛ!**")
             except ValueError: await ask.reply("❌ **ɪɴᴠᴀʟɪᴅ ɪᴅ! ᴏɴʟʏ ɴᴜᴍʙᴇʀs ᴀʟʟᴏᴡᴇᴅ.**")
+
+        # ==============================================================
+        # MANAGE POSTING CHANNELS (ADD / REMOVE VIA BUTTONS)
+        # ==============================================================
+        elif data == "manage_channels":
+            if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
+            
+            # Yahan assume kiya gaya hai ki db.get_channels() db mein maujud sabhi channels ki list dega
+            channels = await db.get_channels() 
+            
+            text = (
+                "<b>📁 MANAGE POSTING CHANNELS</b>\n\n"
+                "<i>Yahan se aap un channels ko manage kar sakte hain jahan bot posts bhegega.</i>\n\n"
+                "» Tap <b>REMOVE</b> beside a channel to delete it."
+            )
+            buttons = []
+            for ch in channels:
+                # Assuming channel dict structure has 'id' (or '_id') and 'name'
+                ch_id = ch.get("id", ch.get("_id"))
+                ch_name = ch.get("name", "Unknown Channel")
+                
+                buttons.append([
+                    InlineKeyboardButton(f"📢 {ch_name}", callback_data="noop"),
+                    InlineKeyboardButton("❌ REMOVE", callback_data=f"del_bot_ch_{ch_id}")
+                ])
+                
+            buttons.append([InlineKeyboardButton("➕ ADD CHANNEL", callback_data="add_bot_channel")])
+            buttons.append([InlineKeyboardButton("🔙 BACK", callback_data="open_admin")])
+            
+            await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons), parse_mode=enums.ParseMode.HTML)
+
+        elif data == "add_bot_channel":
+            if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
+            chat = query.message.chat
+            cancel_btn = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 BACK", callback_data="cancel_flow"),
+                 InlineKeyboardButton("❌ CLOSE", callback_data="cancel_flow")]
+            ])
+
+            try:
+                # STEP 1: CHANNEL ID
+                id_msg = await chat.ask("➕ **Add channel**\n\nSend the channel ID (numeric, e.g. `-1001234567890`).\n\nSend `/cancel` to go back.", timeout=120)
+                if id_msg.text.lower() == "/cancel": return await id_msg.reply("🚫 **Cancelled.**")
+                ch_id = int(id_msg.text)
+
+                # VERIFICATION
+                try:
+                    verify_chat = await client.get_chat(ch_id)
+                except Exception as e:
+                    return await id_msg.reply(f"❌ **Error:** `Peer id invalid`\n\n⚠️ **Main is channel ko access nahi kar pa raha hu!**\nKripya pehle mujhe is channel (`{ch_id}`) mein **Admin** banayein.\n\n**Error:** `{e}`")
+
+                # STEP 2: TITLE
+                fetched_title = verify_chat.title if verify_chat else "Unknown"
+                title_msg = await chat.ask(f"Send the title for this channel (e.g. \"One Piece\"):\n\n**Fetched Title:** `{fetched_title}`", reply_markup=cancel_btn, timeout=120)
+                if title_msg.text.lower() == "/cancel": return
+                title = title_msg.text
+
+                # STEP 3: GENRES
+                genre_msg = await chat.ask("Send **Genres** for this channel (e.g., Romance, Drama) or send `/skip`:", reply_markup=cancel_btn, timeout=120)
+                if genre_msg.text.lower() == "/cancel": return
+                desc = "" if genre_msg.text.lower() == "/skip" else re.sub(r"(?i)^genres?:\s*", "", genre_msg.text)
+
+                # STEP 4: POSTER IMAGE
+                poster_msg = await chat.ask("Send a poster image for this channel, or send `/skip` to skip:", reply_markup=cancel_btn, timeout=120)
+                if poster_msg.text and poster_msg.text.lower() == "/cancel": return
+                poster_id = poster_msg.photo.file_id if poster_msg.photo else None
+
+                # SAVE TO DB (Post Mode aur Auto Del remove kar diya gaya hai yahan se)
+                channel_data = {
+                    "name": title,
+                    "description": desc,
+                    "poster_id": poster_id
+                }
+                await db.add_channel(ch_id, channel_data)
+
+                # SUCCESS MSG
+                success_text = (
+                    "✅ **Channel Added Successfully!**\n\n"
+                    f"**Title:** {title}\n"
+                    f"**ID:** `{ch_id}`\n"
+                    f"**Genres:** {desc if desc else 'Skipped'}\n\n"
+                    "*(Post Mode and Auto-Delete settings will be applied globally from the Admin Panel)*"
+                )
+                if poster_id:
+                    await client.send_photo(chat.id, photo=poster_id, caption=success_text)
+                else:
+                    await client.send_message(chat.id, success_text)
+
+            except asyncio.TimeoutError:
+                await client.send_message(chat.id, "⏰ **Time is up! Process reset. Try again.**")
+            except ValueError:
+                await client.send_message(chat.id, "❌ **Invalid ID provided! Must be numeric.**")
+
+        elif data.startswith("del_bot_ch_"):
+            if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
+            
+            # Extract channel ID from callback data
+            ch_id_to_del = int(data.split("_")[3]) 
+            
+            await db.remove_channel(ch_id_to_del)
+            await query.answer("✅ Channel Removed Successfully!", show_alert=True)
+            
+            # Automatically refresh the channel list menu
+            query.data = "manage_channels"
+            await main_callback_handler(client, query)
 
         # ==============================================================
         # MANAGE F-SUB (REQUIREMENTS)
