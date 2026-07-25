@@ -19,11 +19,11 @@ async def add_channel_step_by_step(client, message):
     try:
         # STEP 1: CHANNEL ID
         id_msg = await chat.ask(
-            "➕ **Add channel**\n\nSend the channel ID (numeric, e.g. `-1001234567890`).\n\nSend `/cancel` to go back.",
+            "✨ **Add a New Channel**\n\nPlease send the **Channel ID** (must be numeric, e.g., `-1001234567890`).\n\nSend `/cancel` to abort the process.",
             timeout=120
         )
         if id_msg.text.lower() == "/cancel":
-            return await message.reply("🚫 **Cancelled.**")
+            return await message.reply("🚫 **Action cancelled.**")
         ch_id = int(id_msg.text)
 
         # 🛡️ VERIFICATION STEP: Check if bot is an Admin in the channel (Peer ID Fix)
@@ -31,16 +31,16 @@ async def add_channel_step_by_step(client, message):
             verify_chat = await client.get_chat(ch_id)
         except Exception as e:
             return await message.reply(
-                f"❌ **Error:** `Peer id invalid`\n\n"
-                f"⚠️ **Main is channel ko access nahi kar pa raha hu!**\n"
-                f"Kripya pehle mujhe is channel (`{ch_id}`) mein **Admin** banayein, uske baad add karein.\n\n"
+                f"❌ **Error:** `Invalid Peer ID`\n\n"
+                f"⚠️ **I cannot access this channel!**\n"
+                f"Please make sure I am an **Admin** in the channel (`{ch_id}`) first, and then try adding it again.\n\n"
                 f"**System Error:** `{e}`"
             )
 
         # STEP 2: TITLE
         fetched_title = verify_chat.title if verify_chat else "Unknown"
         title_msg = await chat.ask(
-            f"Send the title for this channel (e.g. \"One Piece\"):\n\n**ID:** `{ch_id}`\n**Fetched Title:** `{fetched_title}`",
+            f"📝 **Set Channel Title**\n\nPlease send a title for this channel (e.g., 'One Piece'):\n\n**ID:** `{ch_id}`\n**Fetched Title:** `{fetched_title}`",
             reply_markup=cancel_btn, timeout=120
         )
         if title_msg.text.lower() == "/cancel": return
@@ -48,7 +48,7 @@ async def add_channel_step_by_step(client, message):
 
         # STEP 3: GENRES (Replaced Description)
         genre_msg = await chat.ask(
-            "Send **Genres** for this channel (e.g., Romance, Drama) or send `/skip`:\n\n(No need to write 'Genres:', just send the names.)",
+            "🎭 **Set Channel Genres**\n\nSend the genres for this channel (e.g., Romance, Drama) or send `/skip`.\n\n*(Just type the names, no need to write 'Genres:')*",
             reply_markup=cancel_btn, timeout=120
         )
         if genre_msg.text.lower() == "/cancel": return
@@ -62,7 +62,7 @@ async def add_channel_step_by_step(client, message):
 
         # STEP 4: POSTER IMAGE
         poster_msg = await chat.ask(
-            "Send a poster image for this channel, or send `/skip` to skip:",
+            "🖼️ **Set Channel Poster**\n\nSend a cool poster image for this channel, or send `/skip` to bypass this step:",
             reply_markup=cancel_btn, timeout=120
         )
         
@@ -80,11 +80,11 @@ async def add_channel_step_by_step(client, message):
 
         # FINAL SUCCESS MESSAGE (Video Format)
         success_text = (
-            "✅ **Channel Added Successfully!**\n\n"
-            f"**Title:** {title}\n"
-            f"**ID:** `{ch_id}`\n"
-            f"**Genres:** {desc if desc else 'Skipped'}\n\n"
-            "*(Post Mode and Auto-Delete settings will be applied globally from the Admin Panel)*"
+            "🎉 **Channel Successfully Added!**\n\n"
+            f"🏷 **Title:** {title}\n"
+            f"🆔 **ID:** `{ch_id}`\n"
+            f"🎭 **Genres:** {desc if desc else 'Skipped'}\n\n"
+            "*(Note: Post Mode and Auto-Delete settings will be applied globally from the Admin Panel)*"
         )
 
         if poster_id:
@@ -93,15 +93,15 @@ async def add_channel_step_by_step(client, message):
             await message.reply_text(success_text)
 
     except asyncio.TimeoutError:
-        await message.reply("⏰ **Time is up! Process reset. Try again.**")
+        await message.reply("⏰ **Time is up! The process has been reset. Please try again.**")
     except ValueError:
-        await message.reply("❌ **Invalid ID provided! Channel ID must be numbers.**")
+        await message.reply("❌ **Invalid ID provided! The Channel ID must be a numeric value.**")
 
 
 # Button cancel handler for Add Channel flow
 @Client.on_callback_query(filters.regex("cancel_flow"))
 async def cancel_flow_handler(client, query):
-    await query.message.edit_text("🚫 **Process closed by Admin.**")
+    await query.message.edit_text("🚫 **Process safely closed by Admin.**")
 
 
 # ==================== 2. DELETE CHANNEL COMMAND ====================
@@ -111,10 +111,10 @@ async def del_channel(client, message):
         # Command se ID extract karega (e.g., /delchannel -100123456789)
         ch_id = int(message.text.split(" ")[1])
         await db.remove_channel(ch_id)
-        await message.reply_text(f"> 🗑️ **𝗖𝗵𝗮𝗻𝗻𝗲𝗹 𝗥𝗲𝗺𝗼𝘃𝗲𝗱 𝗦𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆:** `{ch_id}`")
+        await message.reply_text(f"> 🗑️ **Channel Removed Successfully:** `{ch_id}`")
     except IndexError:
-        await message.reply_text("❌ **𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗙𝗼𝗿𝗺𝗮𝘁!**\n𝖴𝗌𝖾: `/delchannel -100123456789`")
+        await message.reply_text("❌ **Invalid Format!**\n**Usage:** `/delchannel -100123456789`")
     except ValueError:
-        await message.reply_text("❌ **Invalid ID!**\nChannel ID numbers mein honi chahiye.")
+        await message.reply_text("❌ **Invalid ID!**\nThe Channel ID must contain only numbers.")
     except Exception as e:
         await message.reply_text(f"❌ **Error:** `{e}`")
