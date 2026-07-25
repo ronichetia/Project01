@@ -7,9 +7,10 @@ import secrets
 import asyncio
 import json
 
-# Temp dictionary bot run time ke liye
+# Temporary dictionary for bot runtime
 post_data = {} 
-user_batches = {} # Batch files temporary store karne ke liye
+# Temporary storage for batch files
+user_batches = {} 
 
 # ⏱️ Helper function
 def parse_time(time_str):
@@ -30,8 +31,8 @@ def format_url(url):
         return f"https://{url}"
     return url
 
-# 🔍 𝗦𝗺𝗮𝗿𝘁 𝗥𝗲𝗴𝗲𝘅 - 𝗘𝗽𝗶𝘀𝗼𝗱𝗲 𝗗𝗲𝘁𝗲𝗰𝘁𝗶𝗼𝗻 (S01EP05, epi01, e06, ep83, E1)
-EP_REGEX = r"(?i)(?:s\d{1,2})?[\s_.\-]*(?:ep|episode|epi|e)[\s_.\-]*(\d+)"
+# 🔍 𝗦𝗺𝗮𝗿𝘁 𝗥𝗲𝗴𝗲𝘅 - 𝗘𝗽𝗶𝘀𝗼𝗱𝗲 𝗗𝗲𝘁𝗲𝗰𝘁𝗶𝗼𝗻 (Upgraded to detect ranges like S01EP01-03)
+EP_REGEX = r"(?i)(?:s\d{1,2})?[\s_.\-]*(?:ep|episode|epi|e)[\s_.\-]*(\d+)(?:[\s_.\-]*to[\s_.\-]*|[\s_.\-]+)?(\d+)?"
 
 
 # --- 🟢 BATCH MODE COMMANDS ---
@@ -39,7 +40,7 @@ EP_REGEX = r"(?i)(?:s\d{1,2})?[\s_.\-]*(?:ep|episode|epi|e)[\s_.\-]*(\d+)"
 @Client.on_message(filters.command("batch") & admin_filter & filters.private)
 async def start_batch(client, message):
     user_batches[message.from_user.id] = []
-    await message.reply_text("✅ **Batch Mode Started!**\n\nAb saari videos/documents send karein. Jab sab send ho jayein tab `/done` command bhejein.")
+    await message.reply_text("✅ **Batch Mode Started!**\n\nNow send all your videos or documents. When you are finished sending, send the `/done` command.")
 
 @Client.on_message(filters.command("cancel") & admin_filter & filters.private)
 async def cancel_batch(client, message):
@@ -52,20 +53,22 @@ async def cancel_batch(client, message):
 async def finish_batch(client, message):
     user_id = message.from_user.id
     if user_id not in user_batches or not user_batches[user_id]:
-        return await message.reply_text("❌ **Koi files nahi mili!** Pehle `/batch` start karein.")
+        return await message.reply_text("❌ **No files found!** Please start with the `/batch` command first.")
 
     files = user_batches[user_id]
     await message.reply_text(f"⏳ **Processing {len(files)} files...**")
 
     ep_numbers = []
     file_ids = []
-    main_caption = files[0]['caption'] # Pehli video ka caption use karenge
+    main_caption = files[0]['caption'] # We will use the caption of the first video
 
     for f in files:
         file_ids.append(f['file_id'])
         match = re.search(EP_REGEX, f['caption'])
         if match:
-            ep_numbers.append(int(match.group(1))) # 05 ko 5 bana dega
+            ep_numbers.append(int(match.group(1))) # Converts 05 to 5
+            if match.group(2): # If a range is detected in a single batch file
+                ep_numbers.append(int(match.group(2)))
 
     # 🔗 Generate Batch Start Link
     file_hash = secrets.token_urlsafe(8)
@@ -107,7 +110,7 @@ async def handle_video_upload(client, message):
     file_id = message.document.file_id if message.document else message.video.file_id
     caption = message.caption or "No Caption"
 
-    # Agar batch mode on hai, toh files batch me add hongi
+    # If batch mode is on, files will be added to the batch
     if user_id in user_batches:
         user_batches[user_id].append({
             "file_id": file_id,
@@ -115,19 +118,25 @@ async def handle_video_upload(client, message):
             "msg_id": message.id,
             "chat_id": message.chat.id
         })
-        return await message.reply_text(f"✅ **File added to batch!** (Total: {len(user_batches[user_id])})\n_Jab done ho jaye tab /done bhejein._", quote=True)
+        return await message.reply_text(f"✅ **File added to batch!** (Total: {len(user_batches[user_id])})\n_When you are finished, send `/done`._", quote=True)
 
-    # 🔍 Single File Upload Logic
+    # 🔍 Single File Upload Logic (Upgraded to support episode ranges)
     match = re.search(EP_REGEX, caption)
     if match:
-        ep_num = int(match.group(1))
-        btn_name = f"🎬 𝗘𝗣𝗜𝗦𝗢𝗗𝗘 {ep_num}"
+        ep_start = int(match.group(1))
+        ep_end = int(match.group(2)) if match.group(2) else None
+        
+        if ep_end and ep_end != ep_start:
+            btn_name = f"🎬 𝗘𝗣𝗜𝗦𝗢𝗗𝗘 {ep_start} - {ep_end}"
+        else:
+            btn_name = f"🎬 𝗘𝗣𝗜𝗦𝗢𝗗𝗘 {ep_start}"
     else:
         btn_name = "📥 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱 𝗩𝗶𝗱𝗲𝗼" 
 
     # 🔗 Generate Secure Start Link
     file_hash = secrets.token_urlsafe(8)
-    await db.save_file(json.dumps([file_id]), file_hash, caption) # Single file ko bhi list me daala taki start me issue na ho
+    # Put single file in a list as well to prevent issues at start
+    await db.save_file(json.dumps([file_id]), file_hash, caption) 
     
     bot_info = await client.get_me()
     start_link = f"https://t.me/{bot_info.username}?start={file_hash}"
@@ -148,7 +157,7 @@ async def handle_video_upload(client, message):
 async def send_channel_selection(message, file_hash, caption, btn_name):
     channels = await db.get_channels()
     if not channels:
-        return await message.reply_text("❌ Koi channel added nahi hai. Pehle /addchannel karein.")
+        return await message.reply_text("❌ **No channels added yet.** Please add one using `/addchannel` first.")
 
     buttons = [[InlineKeyboardButton(ch.get('name', 'Channel'), callback_data=f"post:{file_hash}:{ch['_id']}")] for ch in channels]
     
@@ -156,7 +165,7 @@ async def send_channel_selection(message, file_hash, caption, btn_name):
         f"> 🔗 **𝗟𝗶𝗻𝗸 𝗚𝗲𝗻𝗲𝗿𝗮𝘁𝗲𝗱 𝗦𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆!**\n\n"
         f"**𝗙𝗶𝗹𝗲:** `{caption[:40]}...`\n"
         f"**𝗕𝘂𝘁𝘁𝗼𝗻 𝗡𝗮𝗺𝗲:** {btn_name}\n\n"
-        f"👇 𝖯𝗈𝗌𝗍 𝗄𝖺𝗋𝗇𝖾 𝗄𝖾 𝗅𝗂𝗒𝖾 𝖢𝗁𝖺𝗇𝗇𝖾𝗅 𝗌𝖾𝗅𝖾𝖼𝗍 𝗄𝖺𝗋𝖾𝗂𝗇:",
+        f"👇 𝗦𝗲𝗹𝗲𝗰𝘁 𝗮 𝗖𝗵𝗮𝗻𝗻𝗲𝗹 𝘁𝗼 𝗽𝗼𝘀𝘁:",
         reply_markup=InlineKeyboardMarkup(buttons)
     )
 
@@ -179,7 +188,7 @@ async def final_post_to_channel(client, query: CallbackQuery):
     target_channel = next((ch for ch in channels if ch["_id"] == channel_id), None)
     
     if not target_channel:
-        return await query.message.edit("❌ **Channel Database me nahi mila!**")
+        return await query.message.edit("❌ **Channel not found in the Database!**")
 
     settings = await db.get_settings()
     post_mode = settings.get("post_mode", "Link").capitalize()
@@ -190,7 +199,7 @@ async def final_post_to_channel(client, query: CallbackQuery):
     ch_title = target_channel.get("name", "")
     
     timer_seconds = parse_time(auto_del_str)
-    sent_msg_ids = [] # Ek ya multiple post ki IDs
+    sent_msg_ids = [] # Single or multiple post IDs
     
     try:
         if post_mode == "Forward":
