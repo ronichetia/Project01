@@ -6,7 +6,7 @@ from database import db
 import asyncio
 import pyromod # Used for asking user input dynamically
 import re
-import json # 👈 Naya import batch json load karne ke liye
+import json # 👈 New import for loading batch json
 
 # ==================== TIME PARSER HELPER ====================
 def parse_time(time_str):
@@ -23,7 +23,7 @@ def parse_time(time_str):
         return None
 
 # ==================== BACKGROUND TASK ====================
-# 👈 DM Auto Delete ke liye Helper Task
+# 👈 Helper Task for DM Auto Delete
 async def delete_messages_later(client, chat_id, message_ids, delay):
     await asyncio.sleep(delay)
     try:
@@ -82,7 +82,7 @@ async def get_about_menu(client):
 
 # Admin Menu Generator
 async def get_admin_menu():
-    text = "> 👮 **ᴀᴅᴍɪɴ ᴄᴏɴᴛʀᴏʟ ᴘᴀɴᴇʟ**\n\nʏᴀʜᴀɴ sᴇ ᴀᴀᴘ ʙᴏᴛ ᴋɪ sᴀᴀʀɪ sᴇᴛᴛɪɴɢs ᴍᴀɴᴀɢᴇ ᴋᴀʀ sᴀᴋᴛᴇ ʜᴀɪɴ."
+    text = "> 👮 **ᴀᴅᴍɪɴ ᴄᴏɴᴛʀᴏʟ ᴘᴀɴᴇʟ**\n\nᴍᴀɴᴀɢᴇ ᴀʟʟ ʙᴏᴛ sᴇᴛᴛɪɴɢs ꜰʀᴏᴍ ʜᴇʀᴇ."
     
     btn_list = [
         [InlineKeyboardButton("📊 ʙᴏᴛ sᴛᴀᴛs", callback_data="admin_stats"),
@@ -235,18 +235,18 @@ async def start_cmd(client, message):
         if file_data:
             file_ids_str = file_data["file_id"]
             
-            # Check karega ki ID List(JSON) me hai ya Purani string format me
+            # Check if ID is in List (JSON) format or old string format
             try:
                 file_ids = json.loads(file_ids_str)
             except json.JSONDecodeError:
-                file_ids = [file_ids_str] # Agar purani single file hui toh usko list me daal dega
+                file_ids = [file_ids_str] # If it's an old single file, put it in a list
                 
             main_caption = file_data.get("caption", "ʜᴇʀᴇ ɪs ʏᴏᴜʀ ꜰɪʟᴇ!")
             sent_msg_ids = []
             
-            # Har file ko user ke paas bhejenge (Agar 1 hai toh 1 bhejega, batch hai toh sab bhejega)
+            # Send each file to the user (Single or batch)
             for idx, f_id in enumerate(file_ids):
-                # Caption sirf pehli video par aayega, taaki spam na lage
+                # Caption will only be sent on the first video to avoid spam
                 cap = main_caption if idx == 0 else ""
                 try:
                     msg = await client.send_document(
@@ -265,16 +265,16 @@ async def start_cmd(client, message):
                         sent_msg_ids.append(msg.id)
                     except:
                         pass
-                # Floodwait issue rokne ke liye halka delay batch me
+                # Slight delay in batch to prevent FloodWait issues
                 await asyncio.sleep(0.5)
 
-            # 👈 DM AUTO-DELETE LOGIC ADD KIYA GAYA HAI
+            # 👈 DM AUTO-DELETE LOGIC ADDED
             dm_autodel_timer = settings.get("auto_delete", 0)
             if dm_autodel_timer > 0 and sent_msg_ids:
-                warning = await message.reply_text(f"⚠️ **Note:** ᴀᴘᴋɪ ꜰɪʟᴇs {dm_autodel_timer} sᴇᴄᴏɴᴅs ᴍᴇ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇ ʜᴏ ᴊᴀʏᴇɴɢɪ. ᴋʀɪᴘʏᴀ ᴊᴀʟᴅɪ ꜰᴏʀᴡᴀʀᴅ ʏᴀ sᴀᴠᴇ ᴋᴀʀ ʟᴇɪɴ.")
+                warning = await message.reply_text(f"⚠️ **Note:** ʏᴏᴜʀ ꜰɪʟᴇs ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇᴅ ɪɴ {dm_autodel_timer} sᴇᴄᴏɴᴅs. ᴘʟᴇᴀsᴇ ꜰᴏʀᴡᴀʀᴅ ᴏʀ sᴀᴠᴇ ᴛʜᴇᴍ ǫᴜɪᴄᴋʟʏ.")
                 sent_msg_ids.append(warning.id)
                 
-                # Background me deletion task chala do
+                # Run deletion task in background
                 asyncio.create_task(delete_messages_later(client, message.chat.id, sent_msg_ids, dm_autodel_timer))
 
             return
@@ -372,10 +372,10 @@ async def main_callback_handler(client, query: CallbackQuery):
             else:
                 text = (
                     "> ❓ **𝗛𝗲𝗹𝗽 & 𝗜𝗻𝘀𝘁𝗿𝘂𝗰𝘁𝗶𝗼𝗻𝘀**\n\n"
-                    "• **𝖥𝗂𝗅𝖾𝗌 / 𝖠𝗇𝗂𝗆𝖾 𝖪𝖺𝗂𝗌𝖾 𝖣𝗁𝗎𝗇𝖽𝗁𝖾𝗂𝗇?**\n"
-                    "  Channel me diye gaye episode button par click karein aur bot me `/start` dabayein.\n\n"
-                    "• **𝖥𝗈𝗋𝖼𝖾 𝖲𝗎𝖻𝗌𝖼𝗋𝗂𝗉𝗍𝗂𝗈𝗇:**\n"
-                    "  Files download karne se pehle official channel join karna zaroori hai."
+                    "• **𝗛𝗼𝘄 𝘁𝗼 𝗳𝗶𝗻𝗱 𝗙𝗶𝗹𝗲𝘀 / 𝗔𝗻𝗶𝗺𝗲?**\n"
+                    "  Click the episode button in the channel and press `/start` in the bot.\n\n"
+                    "• **𝗙𝗼𝗿𝗰𝗲 𝗦𝘂𝗯𝘀𝗰𝗿𝗶𝗽𝘁𝗶𝗼𝗻:**\n"
+                    "  It is mandatory to join the official channel before downloading files."
                 )
             
             buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 ʙᴀᴄᴋ", callback_data="back_start")]])
@@ -399,12 +399,12 @@ async def main_callback_handler(client, query: CallbackQuery):
         # ====== ADMIN SUB-MENUS ======
         elif data == "edit_help_video":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
-            ask = await query.message.chat.ask("🎥 **ɴᴀʏᴀ ʜᴇʟᴘ ᴠɪᴅᴇᴏ ʙʜᴇᴊᴇɪɴ (ꜰɪʟᴇ ɪᴅ ʏᴀ ʟɪɴᴋ):**\n\n(ʀᴇᴍᴏᴠᴇ ᴋᴀʀɴᴇ ᴋᴇ ʟɪʏᴇ `OFF` ʙʜᴇᴊᴇɪɴ ʏᴀ `/cancel` ʟɪᴋʜᴇɪɴ)", timeout=120)
+            ask = await query.message.chat.ask("🎥 **sᴇɴᴅ ᴛʜᴇ ɴᴇᴡ ʜᴇʟᴘ ᴠɪᴅᴇᴏ (ꜰɪʟᴇ ɪᴅ ᴏʀ ʟɪɴᴋ):**\n\n(sᴇɴᴅ `OFF` ᴛᴏ ʀᴇᴍᴏᴠᴇ ᴏʀ `/cancel` ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
             if ask.text and ask.text.lower() == "/cancel": return await ask.reply("🚫 **ᴄᴀɴᴄᴇʟʟᴇᴅ.**")
             
             video_val = ask.video.file_id if ask.video else None if ask.text and ask.text.strip().lower() == "off" else ask.text.strip() if ask.text else None
             if video_val is None and not (ask.text and ask.text.strip().lower() == "off"):
-                return await ask.reply("❌ **ɪɴᴠᴀʟɪᴅ ɪɴᴘᴜᴛ! sɪʀꜰ ᴠɪᴅᴇᴏ ʏᴀ ʟɪɴᴋ ʙʜᴇᴊᴇɪɴ.**")
+                return await ask.reply("❌ **ɪɴᴠᴀʟɪᴅ ɪɴᴘᴜᴛ! ᴘʟᴇᴀsᴇ sᴇɴᴅ ᴏɴʟʏ ᴀ ᴠɪᴅᴇᴏ ᴏʀ ʟɪɴᴋ.**")
             
             await db.update_setting("help_video", video_val)
             await ask.reply("✅ **ʜᴇʟᴘ ᴠɪᴅᴇᴏ ᴜᴘᴅᴀᴛᴇᴅ!**" if video_val else "🗑️ **ʜᴇʟᴘ ᴠɪᴅᴇᴏ ʀᴇᴍᴏᴠᴇᴅ!**")
@@ -422,7 +422,7 @@ async def main_callback_handler(client, query: CallbackQuery):
                     await db.update_setting("help_text", ask.text)
                     await ask.reply("✅ **ʜᴇʟᴘ ᴛᴇxᴛ ᴜᴘᴅᴀᴛᴇᴅ sᴜᴄᴄᴇssꜰᴜʟʟʏ!**")
             else:
-                await ask.reply("❌ **ɪɴᴠᴀʟɪᴅ ɪɴᴘᴜᴛ! sɪʀꜰ ᴛᴇxᴛ ᴀʟʟᴏᴡᴇᴅ ʜᴀɪ.**")
+                await ask.reply("❌ **ɪɴᴠᴀʟɪᴅ ɪɴᴘᴜᴛ! ᴏɴʟʏ ᴛᴇxᴛ ɪs ᴀʟʟᴏᴡᴇᴅ.**")
 
         elif data == "admin_manage":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
@@ -469,7 +469,7 @@ async def main_callback_handler(client, query: CallbackQuery):
             
             text = (
                 "<b>📁 MANAGE POSTING CHANNELS</b>\n\n"
-                "<i>Yahan se aap un channels ko manage kar sakte hain jahan bot posts bhegega.</i>\n\n"
+                "<i>Manage the channels where the bot will send posts.</i>\n\n"
                 "» Tap <b>REMOVE</b> beside a channel to delete it."
             )
             buttons = []
@@ -505,7 +505,7 @@ async def main_callback_handler(client, query: CallbackQuery):
                 try:
                     verify_chat = await client.get_chat(ch_id)
                 except Exception as e:
-                    return await id_msg.reply(f"❌ **Error:** `Peer id invalid`\n\n⚠️ **Main is channel ko access nahi kar pa raha hu!**\nKripya pehle mujhe is channel (`{ch_id}`) mein **Admin** banayein.\n\n**Error:** `{e}`")
+                    return await id_msg.reply(f"❌ **Error:** `Peer id invalid`\n\n⚠️ **I cannot access this channel!**\nPlease make me an **Admin** in this channel (`{ch_id}`) first.\n\n**Error:** `{e}`")
 
                 # STEP 2: TITLE
                 fetched_title = verify_chat.title if verify_chat else "Unknown"
@@ -767,7 +767,7 @@ async def main_callback_handler(client, query: CallbackQuery):
                     await db.update_setting("fsub_text", ask_msg.text)
                     await ask_msg.reply("✅ **ɴᴇᴡ ꜰ-sᴜʙ ᴍᴇssᴀɢᴇ sᴇᴛ sᴜᴄᴄᴇssꜰᴜʟʟʏ!**")
             else:
-                await ask_msg.reply("❌ **ɪɴᴠᴀʟɪᴅ ɪɴᴘᴜᴛ! sɪʀꜰ ᴛᴇxᴛ ᴀʟʟᴏᴡᴇᴅ ʜᴀɪ.**")
+                await ask_msg.reply("❌ **ɪɴᴠᴀʟɪᴅ ɪɴᴘᴜᴛ! ᴏɴʟʏ ᴛᴇxᴛ ɪs ᴀʟʟᴏᴡᴇᴅ.**")
 
         elif data == "admin_post_mode":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
