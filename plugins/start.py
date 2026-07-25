@@ -6,6 +6,7 @@ from database import db
 import asyncio
 import pyromod # Used for asking user input dynamically
 import re
+import json # 👈 Naya import batch json load karne ke liye
 
 # ==================== TIME PARSER HELPER ====================
 def parse_time(time_str):
@@ -20,6 +21,15 @@ def parse_time(time_str):
         return int(time_str) # Default seconds if no letter provided
     except ValueError:
         return None
+
+# ==================== BACKGROUND TASK ====================
+# 👈 DM Auto Delete ke liye Helper Task
+async def delete_messages_later(client, chat_id, message_ids, delay):
+    await asyncio.sleep(delay)
+    try:
+        await client.delete_messages(chat_id=chat_id, message_ids=message_ids)
+    except Exception as e:
+        pass
 
 
 # ==================== HELPER FUNCTIONS ====================
@@ -77,7 +87,6 @@ async def get_admin_menu():
     btn_list = [
         [InlineKeyboardButton("📊 ʙᴏᴛ sᴛᴀᴛs", callback_data="admin_stats"),
          InlineKeyboardButton("📢 ʙʀᴏᴀᴅᴄᴀsᴛ", callback_data="admin_broadcast")],
-        # Updated Row: manage_fsub aur manage_channels ek sath hain
         [InlineKeyboardButton("📺 ᴍᴀɴᴀɢᴇ ꜰ-sᴜʙ", callback_data="manage_fsub"),
          InlineKeyboardButton("📁 ᴍᴀɴᴀɢᴇ ᴄʜᴀɴɴᴇʟs", callback_data="manage_channels")],
         [InlineKeyboardButton("⚙️ ꜰ-sᴜʙ sᴇᴛᴛɪɴɢs", callback_data="admin_fsub"),
@@ -93,15 +102,16 @@ async def get_admin_menu():
     ]
     return text, InlineKeyboardMarkup(btn_list)
 
-# F-Sub Menu
+# F-Sub Menu (UPDATED with Custom Text Edit button)
 async def render_fsub_menu(query):
     settings = await db.get_settings()
     fsub_on = settings.get("fsub", False)
     fsub_text = "✅ ꜰ-sᴜʙ: ᴏɴ" if fsub_on else "❌ ꜰ-sᴜʙ: ᴏꜰꜰ"
     
-    text = "> ⚙️ **ꜰᴏʀᴄᴇ-sᴜʙ sᴇᴛᴛɪɴɢs**\n\nᴛᴏɢɢʟᴇ ꜰᴏʀᴄᴇ-sᴜʙ ᴏɴ ᴏʀ ᴏꜰꜰ ꜰʀᴏᴍ ʜᴇʀᴇ:"
+    text = "> ⚙️ **ꜰᴏʀᴄᴇ-sᴜʙ sᴇᴛᴛɪɴɢs**\n\nᴛᴏɢɢʟᴇ ꜰᴏʀᴄᴇ-sᴜʙ ᴏɴ ᴏʀ ᴏꜰꜰ ꜰʀᴏᴍ ʜᴇʀᴇ, ᴀɴᴅ ᴇᴅɪᴛ ᴛʜᴇ ᴀᴄᴄᴇss ᴅᴇɴɪᴇᴅ ᴍᴇssᴀɢᴇ:"
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton(fsub_text, callback_data="toggle_fsub")],
+        [InlineKeyboardButton("📝 ᴇᴅɪᴛ ꜰ-sᴜʙ ᴛᴇxᴛ", callback_data="edit_fsub_text")],
         [InlineKeyboardButton("🔙 ʙᴀᴄᴋ", callback_data="open_admin")] 
     ])
     
@@ -113,7 +123,7 @@ async def render_fsub_menu(query):
 # Post Mode Menu
 async def render_post_mode_menu(query):
     settings = await db.get_settings()
-    mode = settings.get("post_mode", "Link") # Default Link
+    mode = settings.get("post_mode", "Link") 
     
     text = "> 📮 **ᴘᴏsᴛ ᴍᴏᴅᴇ sᴇᴛᴛɪɴɢs**\n\nᴄʜᴏᴏsᴇ ʜᴏᴡ ᴛʜᴇ ʙᴏᴛ sʜᴏᴜʟᴅ sᴇɴᴅ ᴘᴏsᴛs ɪɴ ᴄʜᴀɴɴᴇʟs:\n\n• **ʟɪɴᴋ:** sᴇɴᴅs ᴀ ᴅᴇᴇᴘʟɪɴᴋ ʙᴜᴛᴛᴏɴ.\n• **ꜰᴏʀᴡᴀʀᴅ:** ꜰᴏʀᴡᴀʀᴅs ᴛʜᴇ ᴍᴇssᴀɢᴇ.\n• **ᴄᴏᴘʏ:** sᴇɴᴅs ᴀs ᴀ ᴄᴏᴘʏ (ɴᴏ ꜰᴏʀᴡᴀʀᴅ ᴛᴀɢ)."
     
@@ -182,45 +192,91 @@ async def start_cmd(client, message):
                 
         if not is_joined:
             btn_list = []
+            all_fsub_btns = []
+            
+            # Combine both channels and bots into a single list
             for ch in fsub_channels:
-                btn_list.append([InlineKeyboardButton(f"📢 Join {ch['name']}", url=ch['url'])])
+                all_fsub_btns.append(InlineKeyboardButton(f"{ch['name']}", url=ch['url']))
             for bt in fsub_bots:
-                btn_list.append([InlineKeyboardButton(f"🤖 Start {bt['name']}", url=bt['url'])])
+                all_fsub_btns.append(InlineKeyboardButton(f"{bt['name']}", url=bt['url']))
+                
+            # Chunking buttons 2 per row
+            for i in range(0, len(all_fsub_btns), 2):
+                btn_list.append(all_fsub_btns[i:i+2])
 
             bot_username = (await client.get_me()).username
             if len(message.command) > 1:
                 retry_url = f"https://t.me/{bot_username}?start={message.command[1]}"
-                btn_list.append([InlineKeyboardButton("🔄 Try Again", url=retry_url)])
+                btn_list.append([InlineKeyboardButton("✅ ᴛʀʏ ᴀɢᴀɪɴ", url=retry_url)])
             else:
-                btn_list.append([InlineKeyboardButton("🔄 Try Again", url=f"https://t.me/{bot_username}?start=true")])
+                btn_list.append([InlineKeyboardButton("✅ ᴛʀʏ ᴀɢᴀɪɴ", url=f"https://t.me/{bot_username}?start=true")])
+
+            # Fetch Custom F-Sub Text (or default to the new one you provided)
+            default_fsub_text = (
+                "🚫 ᴛᴏ ᴜsᴇ ᴛʜɪs ʙᴏᴛ, ʏᴏᴜ ᴍᴜꜱᴛ ᴊᴏɪɴ ᴏᴜʀ ᴘᴀʀᴛɴᴇʀ ᴄʜᴀɴɴᴇʟs ʙᴇʟᴏᴡ. 📢\n\n"
+                "ᴛʜɪꜱ ɪs ᴛᴏ ᴘʀᴏᴛᴇᴄᴛ ᴏᴜʀ ᴄᴏɴᴛᴇɴᴛ. ᴘʟᴇᴀꜱᴇ ᴊᴏɪɴ ᴛʜᴇᴍ ᴀɴᴅ ᴛᴀᴘ ᴛʜᴇ '✅ ᴛʀʏ ᴀɢᴀɪɴ' ʙᴜᴛᴛᴏɴ."
+            )
+            fsub_msg_text = settings.get("fsub_text", default_fsub_text)
+            if not fsub_msg_text: # Ensure no empty string slips through
+                fsub_msg_text = default_fsub_text
 
             await message.reply_text(
-                "⚠️ **Access Denied!**\n\n"
-                "You must join our official channels and start our backup bots to use this bot.\n"
-                "Please complete the requirements below and click **Try Again**.",
+                fsub_msg_text,
                 reply_markup=InlineKeyboardMarkup(btn_list)
             )
             return
     # ===========================================
 
-    # DEEP LINKING LOGIC
+    # 👈 UPDATED: DEEP LINKING LOGIC FOR BATCH & AUTO-DELETE
     if len(message.command) > 1 and message.command[1] != "true":
         file_hash = message.command[1]
         file_data = await db.get_file(file_hash)
         
         if file_data:
+            file_ids_str = file_data["file_id"]
+            
+            # Check karega ki ID List(JSON) me hai ya Purani string format me
             try:
-                msg = await client.send_document(
-                    chat_id=message.chat.id,
-                    document=file_data["file_id"],
-                    caption=file_data.get("caption", "ʜᴇʀᴇ ɪs ʏᴏᴜʀ ꜰɪʟᴇ!")
-                )
-            except:
-                msg = await client.send_video(
-                    chat_id=message.chat.id,
-                    video=file_data["file_id"],
-                    caption=file_data.get("caption", "ʜᴇʀᴇ ɪs ʏᴏᴜʀ ᴠɪᴅᴇᴏ!")
-                )
+                file_ids = json.loads(file_ids_str)
+            except json.JSONDecodeError:
+                file_ids = [file_ids_str] # Agar purani single file hui toh usko list me daal dega
+                
+            main_caption = file_data.get("caption", "ʜᴇʀᴇ ɪs ʏᴏᴜʀ ꜰɪʟᴇ!")
+            sent_msg_ids = []
+            
+            # Har file ko user ke paas bhejenge (Agar 1 hai toh 1 bhejega, batch hai toh sab bhejega)
+            for idx, f_id in enumerate(file_ids):
+                # Caption sirf pehli video par aayega, taaki spam na lage
+                cap = main_caption if idx == 0 else ""
+                try:
+                    msg = await client.send_document(
+                        chat_id=message.chat.id,
+                        document=f_id,
+                        caption=cap
+                    )
+                    sent_msg_ids.append(msg.id)
+                except Exception:
+                    try:
+                        msg = await client.send_video(
+                            chat_id=message.chat.id,
+                            video=f_id,
+                            caption=cap
+                        )
+                        sent_msg_ids.append(msg.id)
+                    except:
+                        pass
+                # Floodwait issue rokne ke liye halka delay batch me
+                await asyncio.sleep(0.5)
+
+            # 👈 DM AUTO-DELETE LOGIC ADD KIYA GAYA HAI
+            dm_autodel_timer = settings.get("auto_delete", 0)
+            if dm_autodel_timer > 0 and sent_msg_ids:
+                warning = await message.reply_text(f"⚠️ **Note:** ᴀᴘᴋɪ ꜰɪʟᴇs {dm_autodel_timer} sᴇᴄᴏɴᴅs ᴍᴇ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇ ʜᴏ ᴊᴀʏᴇɴɢɪ. ᴋʀɪᴘʏᴀ ᴊᴀʟᴅɪ ꜰᴏʀᴡᴀʀᴅ ʏᴀ sᴀᴠᴇ ᴋᴀʀ ʟᴇɪɴ.")
+                sent_msg_ids.append(warning.id)
+                
+                # Background me deletion task chala do
+                asyncio.create_task(delete_messages_later(client, message.chat.id, sent_msg_ids, dm_autodel_timer))
+
             return
         else:
             await message.reply_text("❌ **ꜰɪʟᴇ ɴᴏᴛ ꜰᴏᴜɴᴅ ᴏʀ ᴇxᴘɪʀᴇᴅ!**")
@@ -409,7 +465,6 @@ async def main_callback_handler(client, query: CallbackQuery):
         elif data == "manage_channels":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
             
-            # Yahan assume kiya gaya hai ki db.get_channels() db mein maujud sabhi channels ki list dega
             channels = await db.get_channels() 
             
             text = (
@@ -419,7 +474,6 @@ async def main_callback_handler(client, query: CallbackQuery):
             )
             buttons = []
             for ch in channels:
-                # Assuming channel dict structure has 'id' (or '_id') and 'name'
                 ch_id = ch.get("id", ch.get("_id"))
                 ch_name = ch.get("name", "Unknown Channel")
                 
@@ -469,7 +523,7 @@ async def main_callback_handler(client, query: CallbackQuery):
                 if poster_msg.text and poster_msg.text.lower() == "/cancel": return
                 poster_id = poster_msg.photo.file_id if poster_msg.photo else None
 
-                # SAVE TO DB (Post Mode aur Auto Del remove kar diya gaya hai yahan se)
+                # SAVE TO DB
                 channel_data = {
                     "name": title,
                     "description": desc,
@@ -498,13 +552,11 @@ async def main_callback_handler(client, query: CallbackQuery):
         elif data.startswith("del_bot_ch_"):
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
             
-            # Extract channel ID from callback data
             ch_id_to_del = int(data.split("_")[3]) 
             
             await db.remove_channel(ch_id_to_del)
             await query.answer("✅ Channel Removed Successfully!", show_alert=True)
             
-            # Automatically refresh the channel list menu
             query.data = "manage_channels"
             await main_callback_handler(client, query)
 
@@ -699,6 +751,23 @@ async def main_callback_handler(client, query: CallbackQuery):
             await db.toggle_fsub()
             await query.answer("ꜰ-sᴜʙ sᴇᴛᴛɪɴɢ ᴛᴏɢɢʟᴇᴅ!", show_alert=False)
             await render_fsub_menu(query)
+            
+        # 👈 NEW CALLBACK HANDLER FOR EDITING F-SUB TEXT
+        elif data == "edit_fsub_text":
+            if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
+            ask_msg = await query.message.chat.ask("📝 **sᴇɴᴅ ᴛʜᴇ ɴᴇᴡ ꜰ-sᴜʙ (ᴀᴄᴄᴇss ᴅᴇɴɪᴇᴅ) ᴍᴇssᴀɢᴇ:**\n\n(sᴇɴᴅ `default` ᴛᴏ ʀᴇsᴇᴛ, ᴏʀ `/cancel` ᴛᴏ ᴀʙᴏʀᴛ)", timeout=120)
+            
+            if ask_msg.text:
+                if ask_msg.text.lower() == "/cancel": 
+                    return await ask_msg.reply("🚫 **ᴄᴀɴᴄᴇʟʟᴇᴅ.**")
+                elif ask_msg.text.lower() == "default":
+                    await db.update_setting("fsub_text", None)
+                    return await ask_msg.reply("✅ **ꜰ-sᴜʙ ᴍᴇssᴀɢᴇ ʀᴇsᴇᴛ ᴛᴏ ᴅᴇꜰᴀᴜʟᴛ!**")
+                else:
+                    await db.update_setting("fsub_text", ask_msg.text)
+                    await ask_msg.reply("✅ **ɴᴇᴡ ꜰ-sᴜʙ ᴍᴇssᴀɢᴇ sᴇᴛ sᴜᴄᴄᴇssꜰᴜʟʟʏ!**")
+            else:
+                await ask_msg.reply("❌ **ɪɴᴠᴀʟɪᴅ ɪɴᴘᴜᴛ! sɪʀꜰ ᴛᴇxᴛ ᴀʟʟᴏᴡᴇᴅ ʜᴀɪ.**")
 
         elif data == "admin_post_mode":
             if not is_admin: return await query.answer("❌ ᴏɴʟʏ ᴀᴅᴍɪɴs!", show_alert=True)
