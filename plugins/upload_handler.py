@@ -9,8 +9,8 @@ import json
 
 # Temporary dictionary for bot runtime
 post_data = {} 
-# Temporary storage for batch files
-user_batches = {} 
+# Temporary storage for smart auto-batching
+pending_uploads = {} 
 
 # ⏱️ Helper function
 def parse_time(time_str):
@@ -31,54 +31,42 @@ def format_url(url):
         return f"https://{url}"
     return url
 
-# 🔍 𝗦𝗺𝗮𝗿𝘁 𝗥𝗲𝗴𝗲𝘅 - 𝗘𝗽𝗶𝘀𝗼𝗱𝗲 𝗗𝗲𝘁𝗲𝗰𝘁𝗶𝗼𝗻 (Upgraded to detect ranges like S01EP01-03)
-EP_REGEX = r"(?i)(?:s\d{1,2})?[\s_.\-]*(?:ep|episode|epi|e)[\s_.\-]*(\d+)(?:[\s_.\-]*to[\s_.\-]*|[\s_.\-]+)?(\d+)?"
+# 🔍 𝗦𝗺𝗮𝗿𝘁 𝗥𝗲𝗴𝗲𝘅 - 𝗘𝗽𝗶𝘀𝗼𝗱𝗲 𝗗𝗲𝘁𝗲𝗰𝘁𝗶𝗼𝗻 (Strictly fixed to avoid 720p/1080p bugs)
+EP_REGEX = r"(?i)(?:s\d{1,2})?[\s_.\-:]*(?:ep|episode|epi|e)[\s_.\-:]*(\d+)(?:(?:\s*[-~]\s*|\s+to\s+)(\d+))?"
 
 
-# --- 🟢 BATCH MODE COMMANDS ---
+# --- 🟢 SMART FILE UPLOAD & AUTO-BATCH HANDLER ---
 
-@Client.on_message(filters.command("batch") & admin_filter & filters.private)
-async def start_batch(client, message):
-    user_batches[message.from_user.id] = []
-    await message.reply_text("✅ **Batch Mode Started!**\n\nNow send all your videos or documents. When you are finished sending, send the `/done` command.")
-
-@Client.on_message(filters.command("cancel") & admin_filter & filters.private)
-async def cancel_batch(client, message):
-    if message.from_user.id in user_batches:
-        del user_batches[message.from_user.id]
-        await message.reply_text("❌ **Batch Mode Cancelled.**")
-
-
-@Client.on_message(filters.command("done") & admin_filter & filters.private)
-async def finish_batch(client, message):
+@Client.on_message((filters.document | filters.video) & admin_filter & filters.private)
+async def handle_video_upload(client, message):
     user_id = message.from_user.id
-    if user_id not in user_batches or not user_batches[user_id]:
-        return await message.reply_text("❌ **No files found!** Please start with the `/batch` command first.")
+    file_id = message.document.file_id if message.document else message.video.file_id
+    caption = message.caption or "No Caption"
 
-    files = user_batches[user_id]
-    await message.reply_text(f"⏳ **Processing {len(files)} files...**")
+    # Agar user ne pehli baar file bheji hai, to nayi list banayenge
+    if user_id not in pending_uploads:
+        pending_uploads[user_id] = []
 
+    # File ko queue me add karna
+    pending_uploads[user_id].append({
+        "file_id": file_id,
+        "caption": caption,
+        "msg_id": message.id,
+        "chat_id": message.chat.id
+    })
+
+    files = pending_uploads[user_id]
     ep_numbers = []
-    file_ids = []
-    main_caption = files[0]['caption'] # We will use the caption of the first video
 
+    # Queue me jitni bhi files hain, sabke episode numbers check karna
     for f in files:
-        file_ids.append(f['file_id'])
         match = re.search(EP_REGEX, f['caption'])
         if match:
-            ep_numbers.append(int(match.group(1))) # Converts 05 to 5
-            if match.group(2): # If a range is detected in a single batch file
+            ep_numbers.append(int(match.group(1))) # First Ep Number
+            if match.group(2): # If explicit range exists in filename
                 ep_numbers.append(int(match.group(2)))
 
-    # 🔗 Generate Batch Start Link
-    file_hash = secrets.token_urlsafe(8)
-    
-    # Save as JSON string for multiple files
-    await db.save_file(json.dumps(file_ids), file_hash, main_caption)
-    bot_info = await client.get_me()
-    start_link = f"https://t.me/{bot_info.username}?start={file_hash}"
-
-    # 🎬 Dynamic Button Naming for Batch
+    # Smart Button Naming
     if ep_numbers:
         min_ep = min(ep_numbers)
         max_ep = max(ep_numbers)
@@ -87,70 +75,86 @@ async def finish_batch(client, message):
         else:
             btn_name = f"🎬 𝗘𝗣𝗜𝗦𝗢𝗗𝗘 {min_ep} - {max_ep}"
     else:
-        btn_name = f"📥 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱 {len(files)} 𝗩𝗶𝗱𝗲𝗼𝘀"
+        btn_name = f"📥 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱 {len(files)} 𝗩𝗶𝗱𝗲𝗼𝘀" if len(files) > 1 else "📥 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱 𝗩𝗶𝗱𝗲𝗼"
 
+    text = (
+        f"✅ **File Added to Queue!**\n"
+        f"**Total Files Pending:** `{len(files)}`\n"
+        f"**Button Preview:** {btn_name}\n\n"
+        f"👉 *Send more videos to add them to this batch, or click the button below to post them now.*"
+    )
+
+    buttons = [
+        [InlineKeyboardButton("🚀 Post to Channel", callback_data="generate_post")],
+        [InlineKeyboardButton("🗑 Cancel Upload", callback_data="cancel_upload")]
+    ]
+
+    await message.reply_text(text, reply_markup=InlineKeyboardMarkup(buttons), quote=True)
+
+
+# --- 🟢 GENERATE LINK & SHOW CHANNELS ---
+
+@Client.on_callback_query(filters.regex(r"^generate_post$"))
+async def process_generate_post(client, query: CallbackQuery):
+    user_id = query.from_user.id
+    
+    if user_id not in pending_uploads or not pending_uploads[user_id]:
+        return await query.answer("❌ No pending files found!", show_alert=True)
+        
+    files = pending_uploads[user_id]
+    main_caption = files[0]['caption'] # Pehli video ka caption use hoga
+    
+    ep_numbers = []
+    file_ids = []
+    msg_ids = []
+    
+    # Final data preparation
+    for f in files:
+        file_ids.append(f['file_id'])
+        msg_ids.append(f['msg_id'])
+        match = re.search(EP_REGEX, f['caption'])
+        if match:
+            ep_numbers.append(int(match.group(1)))
+            if match.group(2):
+                ep_numbers.append(int(match.group(2)))
+                
+    # Final Button Name
+    if ep_numbers:
+        min_ep = min(ep_numbers)
+        max_ep = max(ep_numbers)
+        btn_name = f"🎬 𝗘𝗣𝗜𝗦𝗢𝗗𝗘 {min_ep}" if min_ep == max_ep else f"🎬 𝗘𝗣𝗜𝗦𝗢𝗗𝗘 {min_ep} - {max_ep}"
+    else:
+        btn_name = f"📥 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱 {len(files)} 𝗩𝗶𝗱𝗲𝗼𝘀" if len(files) > 1 else "📥 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱 𝗩𝗶𝗱𝗲𝗼"
+
+    # Secure Hash aur Link generate karna
+    file_hash = secrets.token_urlsafe(8)
+    await db.save_file(json.dumps(file_ids), file_hash, main_caption)
+    
+    bot_info = await client.get_me()
+    start_link = f"https://t.me/{bot_info.username}?start={file_hash}"
+    
     post_data[file_hash] = {
         "caption": main_caption,
         "btn_name": btn_name,
         "start_link": start_link,
-        "msg_ids": [f['msg_id'] for f in files],       
+        "msg_ids": msg_ids,       
         "chat_id": files[0]['chat_id'],
-        "is_batch": True
+        "is_batch": len(files) > 1
     }
-
-    del user_batches[user_id] # Clear state
-    await send_channel_selection(message, file_hash, main_caption, btn_name)
-
-
-# --- 🟢 FILE UPLOAD HANDLER ---
-
-@Client.on_message((filters.document | filters.video) & admin_filter & filters.private)
-async def handle_video_upload(client, message):
-    user_id = message.from_user.id
-    file_id = message.document.file_id if message.document else message.video.file_id
-    caption = message.caption or "No Caption"
-
-    # If batch mode is on, files will be added to the batch
-    if user_id in user_batches:
-        user_batches[user_id].append({
-            "file_id": file_id,
-            "caption": caption,
-            "msg_id": message.id,
-            "chat_id": message.chat.id
-        })
-        return await message.reply_text(f"✅ **File added to batch!** (Total: {len(user_batches[user_id])})\n_When you are finished, send `/done`._", quote=True)
-
-    # 🔍 Single File Upload Logic (Upgraded to support episode ranges)
-    match = re.search(EP_REGEX, caption)
-    if match:
-        ep_start = int(match.group(1))
-        ep_end = int(match.group(2)) if match.group(2) else None
-        
-        if ep_end and ep_end != ep_start:
-            btn_name = f"🎬 𝗘𝗣𝗜𝗦𝗢𝗗𝗘 {ep_start} - {ep_end}"
-        else:
-            btn_name = f"🎬 𝗘𝗣𝗜𝗦𝗢𝗗𝗘 {ep_start}"
-    else:
-        btn_name = "📥 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱 𝗩𝗶𝗱𝗲𝗼" 
-
-    # 🔗 Generate Secure Start Link
-    file_hash = secrets.token_urlsafe(8)
-    # Put single file in a list as well to prevent issues at start
-    await db.save_file(json.dumps([file_id]), file_hash, caption) 
     
-    bot_info = await client.get_me()
-    start_link = f"https://t.me/{bot_info.username}?start={file_hash}"
+    # Queue ko clear karna jab kaam ho jaye
+    del pending_uploads[user_id]
+    
+    await query.message.delete()
+    await send_channel_selection(query.message, file_hash, main_caption, btn_name)
 
-    post_data[file_hash] = {
-        "caption": caption,
-        "btn_name": btn_name,
-        "start_link": start_link,
-        "msg_ids": [message.id],       
-        "chat_id": message.chat.id,
-        "is_batch": False
-    }
 
-    await send_channel_selection(message, file_hash, caption, btn_name)
+@Client.on_callback_query(filters.regex(r"^cancel_upload$"))
+async def cancel_upload_queue(client, query: CallbackQuery):
+    user_id = query.from_user.id
+    if user_id in pending_uploads:
+        del pending_uploads[user_id]
+    await query.message.edit("❌ **Upload Cancelled. Queue cleared.**")
 
 
 # Helper: Send Channel List
@@ -203,13 +207,11 @@ async def final_post_to_channel(client, query: CallbackQuery):
     
     try:
         if post_mode == "Forward":
-            # Pyrogram forward_messages supports list of IDs directly
             sent_msgs = await client.forward_messages(
                 chat_id=channel_id,
                 from_chat_id=p_data["chat_id"],
                 message_ids=p_data["msg_ids"]
             )
-            # Handle if single message returned instead of list
             if not isinstance(sent_msgs, list):
                 sent_msgs = [sent_msgs]
             sent_msg_ids = [m.id for m in sent_msgs]
