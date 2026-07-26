@@ -1,3 +1,5 @@
+import os
+import base64
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import Config
 
@@ -106,5 +108,34 @@ class Database:
             {"_id": "bot_settings"},
             {"$pull": {"admins": admin_id}}
         )
+
+    # ==========================================
+    # 👇 NEW: 𝗦𝗘𝗦𝗦𝗜𝗢𝗡 𝗙𝗜𝗟𝗘 𝗕𝗔𝗖𝗞𝗨𝗣 & 𝗥𝗘𝗦𝗧𝗢𝗥𝗘
+    # ==========================================
+    async def load_session(self, session_name="PremiumAutoPoster.session"):
+        """Bot start hone se pehle DB se session file wapas layega"""
+        try:
+            session_data = await self.settings.find_one({"_id": "session_file"})
+            if session_data and "file_b64" in session_data:
+                with open(session_name, "wb") as f:
+                    f.write(base64.b64decode(session_data["file_b64"]))
+                print("✅ 𝗦𝗲𝘀𝘀𝗶𝗼𝗻 𝗳𝗶𝗹𝗲 𝗿𝗲𝘀𝘁𝗼𝗿𝗲𝗱 𝗳𝗿𝗼𝗺 𝗠𝗼𝗻𝗴𝗼𝗗𝗕!")
+        except Exception as e:
+            print(f"⚠️ Error loading session: {e}")
+
+    async def save_session(self, session_name="PremiumAutoPoster.session"):
+        """Naye channels add hone par session file ko DB me backup karega"""
+        try:
+            if os.path.exists(session_name):
+                with open(session_name, "rb") as f:
+                    file_b64 = base64.b64encode(f.read()).decode("utf-8")
+                    await self.settings.update_one(
+                        {"_id": "session_file"},
+                        {"$set": {"file_b64": file_b64}},
+                        upsert=True
+                    )
+                print("✅ 𝗦𝗲𝘀𝘀𝗶𝗼𝗻 𝗳𝗶𝗹𝗲 𝗯𝗮𝗰𝗸𝗲𝗱 𝘂𝗽 𝘁𝗼 𝗠𝗼𝗻𝗴𝗼𝗗𝗕!")
+        except Exception as e:
+            print(f"⚠️ Error saving session: {e}")
 
 db = Database()
