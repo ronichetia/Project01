@@ -56,10 +56,20 @@ class PremiumBot(Client):
         except Exception as e:
             print(f"⚠️ Error accessing database for caching: {e}")
 
+        # ==========================================
+        # 3️⃣ NEW: SESSION FILE BACKUP (Start hone ke baad)
+        # ==========================================
+        await db.save_session()
+
     async def stop(self, *args):
         await super().stop()
         print("❌ 𝗕𝗼𝘁 𝗦𝘁𝗼𝗽𝗽𝗲𝗱!")
 
 if __name__ == "__main__":
+    # 👇 NEW: Bot ko start karne se pehle purani session MongoDB se nikalo
+    loop = asyncio.get_event_loop()
+    print("📥 Checking for existing session in MongoDB...")
+    loop.run_until_complete(db.load_session())
+    
     bot = PremiumBot()
     bot.run()
