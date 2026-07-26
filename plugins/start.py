@@ -1,4 +1,4 @@
-From pyrogram import Client, filters, enums
+from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.errors import MessageNotModified
 from config import Config
