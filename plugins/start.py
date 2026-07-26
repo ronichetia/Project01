@@ -1,4 +1,4 @@
-from pyrogram import Client, filters, enums
+From pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.errors import MessageNotModified
 from config import Config
@@ -530,6 +530,9 @@ async def main_callback_handler(client, query: CallbackQuery):
                     "poster_id": poster_id
                 }
                 await db.add_channel(ch_id, channel_data)
+                
+                # 👇 NEW: Backup session immediately after adding channel via Inline Button
+                await db.save_session()
 
                 # SUCCESS MSG
                 success_text = (
